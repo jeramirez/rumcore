@@ -197,7 +197,7 @@ class Command(rocks.commands.list.host.command):
 		"""Reads the XML host profile and outputs a RedHat 
 		Kickstart file."""
 
-		list = []
+		list_section = []
 		self.generator.parse(xml)
 		for section in [
 			'order',
@@ -209,12 +209,12 @@ class Command(rocks.commands.list.host.command):
 			'boot',
 			'installclass'
 			]:
-			list += self.generator.generate(section)
+			list_section += self.generator.generate(section)
 			
 		self.addOutput(host, '<profile lang="kickstart">')
 		self.addOutput(host, '<section name="kickstart">')
 		self.addOutput(host, '<![CDATA[')
-		for line in list:
+		for line in list_section:
 			self.addOutput(host, line.rstrip())
 		self.addOutput(host, ']]>')
 		self.addOutput(host, '</section>')
@@ -257,11 +257,11 @@ class Command(rocks.commands.list.host.command):
 		else:
 			self.get_section.append(self.section)
 		for section in self.get_section:
-			list = []
-			list = self.generator.generate(section)
+			list_section = []
+			list_section = self.generator.generate(section)
 			self.addOutput(host, "<section name=\"%s\">" % section)
 			self.addOutput(host, "<![CDATA[")
-			for line in list:
+			for line in list_section:
 				self.addOutput(host, line.rstrip())
 			self.addOutput(host, "]]>")
 			self.addOutput(host, "</section>")
@@ -276,14 +276,14 @@ class Command(rocks.commands.list.host.command):
 		# By default, print all sections of kickstart/jumpstart file
 		self.section = 'all'
 
-		if params.has_key('section'):
+		if 'section' in params:
 			self.section = params['section']
 
 		self.beginOutput()
 		# If we're reading from stdin assume os=linux unless
 		# otherwise specified
 		if not sys.stdin.isatty():
-			if params.has_key('os'):
+			if 'os' in params:
 				self.os = params['os']
 			else:
 				self.os = 'linux'

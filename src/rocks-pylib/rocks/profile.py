@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 #
 # $Id: profile.py,v 1.37 2012/11/27 00:48:40 phil Exp $
 #
@@ -236,6 +236,7 @@ import rocks.cond
 from xml.sax import saxutils
 from xml.sax import handler
 from xml.sax import make_parser
+from xml.sax.handler import feature_external_ges
 
 class RollHandler(handler.ContentHandler,
 		  handler.DTDHandler,
@@ -292,13 +293,13 @@ class RollHandler(handler.ContentHandler,
 class AttributeHandler:
 
 	def setAttributes(self, attrs):
-		list = []
-		list.append('<?xml version="1.0" standalone="no"?>\n')
-		list.append('<!DOCTYPE rocks-graph [\n')
-		for (k, v) in attrs.items():
-			list.append('\t<!ENTITY %s "%s">\n' % (k, v))
-		list.append(']>\n')
-		self.header = string.join(list, '')
+		list_attr = []
+		list_attr.append('<?xml version="1.0" standalone="no"?>\n')
+		list_attr.append('<!DOCTYPE rocks-graph [\n')
+		for (k, v) in list(attrs.items()):
+			list_attr.append('\t<!ENTITY %s "%s">\n' % (k, v))
+		list_attr.append(']>\n')
+		self.header = ''.join(list_attr)
 
 	def getXMLHeader(self):
 		return self.header
@@ -375,8 +376,7 @@ class GraphHandler(handler.ContentHandler,
 					xml[2] = file
 
 		if not (xml[0] or xml[2]):
-			raise rocks.util.KickstartNodeError, \
-			      'cannot find node "%s"' % node.name
+			raise rocks.util.KickstartNodeError('cannot find node "%s"' % node.name)
 
 		xmlFiles = [ xml[0] ]
 		if xml[1]:
@@ -395,6 +395,7 @@ class GraphHandler(handler.ContentHandler,
 
 			fin = open(xmlFile, 'r')
 			parser = make_parser()
+			parser.setFeature(feature_external_ges,1)
 			handler = Pass1NodeHandler(node, xmlFile, 
 				self.entities, self.attributes, eval)
 			parser.setContentHandler(handler)
@@ -415,15 +416,15 @@ class GraphHandler(handler.ContentHandler,
 				# Send the XML to stderr for debugging before
 				# we parse it.
 				
-				if os.environ.has_key('ROCKSDEBUG'):
+				if 'ROCKSDEBUG' in os.environ:
 					sys.stderr.write('[parse1]%s' % line)
 
 				try:
 					parser.feed(line)
 				except:
-					print 'XML parse error in ' + \
+					print('XML parse error in ' + \
 						'file %s ' % xmlFile + \
-						'on line %d\n' % linenumber
+						'on line %d\n' % linenumber)
 					raise
 				
 			fin.close()
@@ -438,10 +439,11 @@ class GraphHandler(handler.ContentHandler,
 			# user to annotate we do it for them.
 			
 			parser = make_parser()
+			parser.setFeature(feature_external_ges,1)
 			xml = handler.getXML()
 			handler = Pass2NodeHandler(node, self.attributes)
 			parser.setContentHandler(handler)
-			if os.environ.has_key('ROCKSDEBUG'):
+			if 'ROCKSDEBUG' in os.environ:
 				sys.stderr.write('[parse2]%s' % xml)
 			parser.feed(xml)
 
@@ -501,7 +503,7 @@ class GraphHandler(handler.ContentHandler,
 		self.text		= ''
 		self.attrs.order.gen	= self.attrs.order.default.gen
 		
-		if attrs.has_key('gen'):
+		if 'gen' in attrs:
 			self.attrs.order.gen = attrs['gen']
 
 
@@ -517,7 +519,7 @@ class GraphHandler(handler.ContentHandler,
 		self.text		= ''
 		self.attrs.order.gen	= self.attrs.order.default.gen
 
-		if attrs.has_key('gen'):
+		if 'gen' in attrs:
 			self.attrs.order.gen = attrs['gen']
 
 	def endElement_tail(self, name):
@@ -536,13 +538,13 @@ class GraphHandler(handler.ContentHandler,
 		release	= None
 		cond = self.attrs.main.default.cond
 
-		if attrs.has_key('arch'):
+		if 'arch' in attrs:
 			arch = attrs['arch']
-		if attrs.has_key('os'):
+		if 'os' in attrs:
 			osname = attrs['os']
-		if attrs.has_key('release'):
+		if 'release' in attrs:
 			release = attrs['release']
-		if attrs.has_key('cond'):
+		if 'cond' in attrs:
 			cond = "( %s and %s )" % (cond, attrs['cond'])
 			
 		self.attrs.main.cond = \
@@ -565,13 +567,13 @@ class GraphHandler(handler.ContentHandler,
 		release	= None
 		cond = self.attrs.main.default.cond
 
-		if attrs.has_key('arch'):
+		if 'arch' in attrs:
 			arch = attrs['arch']
-		if attrs.has_key('os'):
+		if 'os' in attrs:
 			osname = attrs['os']
-		if attrs.has_key('release'):
+		if 'release' in attrs:
 			release = attrs['release']
-		if attrs.has_key('cond'):
+		if 'cond' in attrs:
 			cond = "( %s and %s )" % (cond, attrs['cond'])
 			
 		self.attrs.main.cond = \
@@ -588,15 +590,15 @@ class GraphHandler(handler.ContentHandler,
 	# <order>
 
 	def startElement_order(self, name, attrs):
-		if attrs.has_key('head'):
+		if 'head' in attrs:
 			self.attrs.order.head = attrs['head']
 		else:
 			self.attrs.order.head = None
-		if attrs.has_key('tail'):
+		if 'tail' in attrs:
 			self.attrs.order.tail = attrs['tail']
 		else:
 			self.attrs.order.tail = None
-		if attrs.has_key('gen'):
+		if 'gen' in attrs:
 			self.attrs.order.default.gen = attrs['gen']
 		else:
 			self.attrs.order.default.gen = None
@@ -611,19 +613,19 @@ class GraphHandler(handler.ContentHandler,
 	# <edge>
 	
 	def startElement_edge(self, name, attrs):
-		if attrs.has_key('arch'):
+		if 'arch' in attrs:
 			arch = attrs['arch']
 		else:
 			arch = None
-		if attrs.has_key('os'):
+		if 'os' in attrs:
 			osname = attrs['os']
 		else:
 			osname = None
-		if attrs.has_key('release'):
+		if 'release' in attrs:
 			release = attrs['release']
 		else:
 			release	= None
-		if attrs.has_key('cond'):
+		if 'cond' in attrs:
 			cond = attrs['cond']
 		else:
 			cond = None
@@ -631,11 +633,11 @@ class GraphHandler(handler.ContentHandler,
 		self.attrs.main.default.cond = \
 			rocks.cond.CreateCondExpr(arch, osname, release, cond)
 		
-		if attrs.has_key('to'):
+		if 'to' in attrs:
 			self.attrs.main.parent = attrs['to']
 		else:
 			self.attrs.main.parent = None
-		if attrs.has_key('from'):
+		if 'from' in attrs:
 			self.attrs.main.child = attrs['from']
 		else:
 			self.attrs.main.child = None
@@ -769,12 +771,12 @@ class Pass1NodeHandler(handler.ContentHandler,
 		file = open(os.path.join('include', filename), 'r')
 		for line in file.readlines():
 			if mode == 'quote':
-				if os.environ.has_key('ROCKSDEBUG'):
+				if 'ROCKSDEBUG' in os.environ:
 					sys.stderr.write('[include]%s' %
 						saxutils.escape(line))
 				self.xml.append(saxutils.escape(line))
 			else:
-				if os.environ.has_key('ROCKSDEBUG'):
+				if 'ROCKSDEBUG' in os.environ:
 					sys.stderr.write('[include]%s' % line)
 				self.xml.append(line)
 		file.close()
@@ -803,7 +805,7 @@ class Pass1NodeHandler(handler.ContentHandler,
 		if varVal:
 			self.entities[varName] = varVal
 		elif varRef:
-			if self.entities.has_key(varRef):
+			if varRef in self.entities:
 				self.entities[varName] = self.entities[varRef]
 			else:
 				self.entities[varName] = ''
@@ -902,19 +904,20 @@ class Pass1NodeHandler(handler.ContentHandler,
 	def endElement_eval(self, name):
 		if not self.doEval:
 			return
-		for key in self.entities.keys():
+		for key in list(self.entities.keys()):
 			os.environ[key] = self.entities[key]
 		p = subprocess.Popen(self.evalShell, shell=True,
 				stdin=subprocess.PIPE, stdout=subprocess.PIPE, 
-				close_fds=True)
+				close_fds=True, text=True)
 		w, r = (p.stdin, p.stdout)
 
-		if os.environ.has_key('ROCKSDEBUG'):
-			for line in string.join(self.evalText, '').split('\n'):
+		if 'ROCKSDEBUG' in os.environ:
+			for line in ''.join(self.evalText).split('\n'):
 				sys.stderr.write('[eval]%s\n' % line)
 		
 		for line in self.evalText:
 			w.write(line)
+		w.flush()
 		w.close()
 
 		for line in r.readlines():
@@ -1000,7 +1003,7 @@ class Pass1NodeHandler(handler.ContentHandler,
 			self.xml.append(saxutils.escape(s))
 			
 	def getXML(self):
-		return self.getXMLHeader() + string.join(self.xml, '')
+		return self.getXMLHeader() + ''.join(self.xml)
 
 
 class Pass2NodeHandler(handler.ContentHandler,
@@ -1050,7 +1053,7 @@ class Pass2NodeHandler(handler.ContentHandler,
 			return
 
 		if self.kskey:
-			self.kstags[self.kskey] = string.join(self.kstext, '')
+			self.kstags[self.kskey] = ''.join(self.kstext)
 			
 		self.xml.append('</%s>' % name)
 
@@ -1060,12 +1063,12 @@ class Pass2NodeHandler(handler.ContentHandler,
 		
 	def getKSText(self):
 		text = ''
-		for key, val in self.kstags.items():
+		for key, val in list(self.kstags.items()):
 			text += '%s %s\n' % (key, val)
 		return text
 		
 	def getXML(self):
-		return string.join(self.xml, '')
+		return ''.join(self.xml)
 
 	
 				
@@ -1110,10 +1113,10 @@ class Node(rocks.graph.Node):
 		return self.roll
 
 	def getXML(self):
-		return string.join(self.xml, '')
+		return ''.join(self.xml)
 
 	def getKSText(self):
-		return string.join(self.kstext, '')
+		return ''.join(self.kstext)
 
 	def getDot(self, prefix='', namespace=''):
 		attrs = 'style=filled '
@@ -1128,7 +1131,7 @@ class Node(rocks.graph.Node):
 		return '%s"%s" [%s];' % (prefix, name, attrs)
 		
 	def drawDot(self, prefix=''):
-		print self.getDot(prefix)
+		print(self.getDot(prefix))
 		
 
 class Edge(rocks.graph.Edge):
@@ -1173,25 +1176,25 @@ class FrameworkEdge(Edge):
 				'[%s arrowsize=1.5];' % (prefix,
 				self.parent.name, self.child.name, attrs)
 
-		list = [] 
+		list_str = [] 
 		label = self.cond.replace('"', '\\"')
-		list.append('%s"%s_%s_%s" '
+		list_str.append('%s"%s_%s_%s" '
 			'[ shape=none label="%s" ];' %
 			(prefix, self.parent.name, self.child.name,
 			label, label))
-		list.append('%s"%s" -> "%s_%s_%s" [%s arrowsize=0];' %
+		list_str.append('%s"%s" -> "%s_%s_%s" [%s arrowsize=0];' %
 			(prefix, self.parent.name,
 			self.parent.name, self.child.name, label,
 			attrs))
-		list.append('%s"%s_%s_%s" -> "%s" [%s arrowsize=1.5];' %
+		list_str.append('%s"%s_%s_%s" -> "%s" [%s arrowsize=1.5];' %
 			(prefix,
 			self.parent.name, self.child.name, label,
 			self.child.name, attrs))
-		return string.join(list, '\n')
+		return '\n'.join(list_str)
 					
 	
 	def drawDot(self, prefix=''):
-		print self.getDot(prefix)
+		print(self.getDot(prefix))
 		
 
 
@@ -1217,7 +1220,7 @@ class OrderEdge(Edge):
 		return '%s"%s" -> "%s" [%s];' % (prefix, parent, child, attrs)
 
 	def drawDot(self, prefix=''):
-		print self.getDot(prefix)
+		print(self.getDot(prefix))
 		
 
 
@@ -1228,12 +1231,12 @@ class FrameworkIterator(rocks.graph.GraphIterator):
 
 	def run(self, node):
 		rocks.graph.GraphIterator.run(self, node)
-		keys = self.nodes.keys()
+		keys = list(self.nodes.keys())
 		keys.sort()
-		list = []
+		list_keys = []
 		for key in keys:
-			list.append(self.nodes[key])
-		return list
+			list_keys.append(self.nodes[key])
+		return list_keys
 	
 	def visitHandler(self, node, edge):
 		rocks.graph.GraphIterator.visitHandler(self, node, edge)
@@ -1301,13 +1304,13 @@ class OrderIterator(rocks.graph.GraphIterator):
 		self.time  = 0
 		rocks.graph.GraphIterator.run(self)
 
-		list = []
+		list_pairs = []
 		self.nodes.sort()
 		for rank, node, gen in self.nodes:
-			list.append((node, gen))
-		list.reverse()
+			list_pairs.append((node, gen))
+		list_pairs.reverse()
 
-		return list
+		return list_pairs
 
 
 	def visitHandler(self, node, edge):

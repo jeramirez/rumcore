@@ -189,21 +189,21 @@ class Command(rocks.commands.add.command):
 	</example>
 	"""
 
-        def run(self, params, args):
+	def run(self, params, args):
         	
-        	(args, subnet, netmask) = self.fillPositionalArgs(
-        		('subnet', 'netmask'))
+		(args, subnet, netmask) = self.fillPositionalArgs(
+			('subnet', 'netmask'))
 
 		(mtu,) = self.fillParams([('mtu', '1500')])
 
-        	if len(args) != 1:
-        		self.abort('must supply one network')
-        	name = args[0]
+		if len(args) != 1:
+			self.abort('must supply one network')
+		name = args[0]
 
 		if not subnet:
-                        self.abort('subnet not specified')
+			self.abort('subnet not specified')
 		if not netmask:
-                        self.abort('netmask not specified')
+			self.abort('netmask not specified')
 
 		(dnszone, servedns) = self.fillParams([('dnszone', name),
 			('servedns','n')])

@@ -180,7 +180,7 @@ class Command(rocks.commands.list.host.command):
 
 	def run(self, params, args):
 
-                (roll, ) = self.fillParams([('roll', )])
+		(roll, ) = self.fillParams([('roll', )])
                 
 		self.beginOutput()
 
@@ -204,7 +204,7 @@ class Command(rocks.commands.list.host.command):
 				nt.node=n.id AND nt.subnet=s.id AND
 				nt.ip IS NOT NULL AND
 				n.name='%s'""" % host)
-                        address, ksmac= self.db.fetchone()
+			address, ksmac= self.db.fetchone()
 
 			attrs = self.db.getHostAttrs(host)
 			attrs['hostaddr']	= address

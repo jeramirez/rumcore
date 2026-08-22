@@ -142,16 +142,16 @@ class Command(rocks.commands.report.command):
 		
 
 	def runXML(self, xml):
-		list = []
+		list_section = []
 
 		self.generator.parse(xml)
 		section_name = 'post'
 		if self.os == 'sunos':
 			section_name = 'finish'
 
-		list += self.generator.generate(section_name)
+		list_section += self.generator.generate(section_name)
 			
-		for line in list:
+		for line in list_section:
 			if line.startswith('%post') or line.startswith('%end'):
 				continue
 
@@ -181,7 +181,7 @@ class Command(rocks.commands.report.command):
 		if attributes:
 			attrs = eval(attributes)
 			xml += '<!DOCTYPE rocks-graph [\n'
-			for (k, v) in attrs.items():
+			for (k, v) in list(attrs.items()):
 				v = rocks.util.escapeAttr(v)
 				xml += '\t<!ENTITY %s "%s">\n' % (k, v)
 			xml += ']>\n'

@@ -110,17 +110,17 @@ class Command(rocks.commands.list.command):
 		# Using a dictionary read the default values for all nodes
 		# and override the entries with the per-node values.
 		
-		dict = {}
+		bootaction_dict = {}
 		self.db.execute("""select action, kernel, ramdisk, args from
 			bootaction""")
 
 		for row in self.db.fetchall():
-			dict[row[0]] = row[1:]
+			bootaction_dict[row[0]] = row[1:]
 
-		keys = dict.keys()
+		keys = list(bootaction_dict)
 		keys.sort()
 		for action in keys:
-			self.addOutput(action, dict[action])
+			self.addOutput(action, bootaction_dict[action])
 
 		self.endOutput(header=[ 'action', 'kernel', 'ramdisk', 'args'])
 

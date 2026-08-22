@@ -174,10 +174,10 @@ class Command(rocks.commands.RollArgumentProcessor,
 	"""		
 
 	def run(self, params, args):
-                (arch, ) = self.fillParams([('arch', '%')])
+		(arch, ) = self.fillParams([('arch', '%')])
 
-                if len(args) < 1:
-                        self.abort('must supply one or more rolls')
+		if len(args) < 1:
+			self.abort('must supply one or more rolls')
 
 		for (roll, version) in self.getRollNames(args, params):
 			self.db.execute("""update rolls set enabled='no' where

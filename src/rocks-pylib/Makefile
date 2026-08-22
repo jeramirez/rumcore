@@ -54,7 +54,7 @@
 # @Copyright@
 #
 
-PKGROOT		= /opt/rocks
+PKGROOT		= /usr
 REDHAT.ROOT     = $(CURDIR)/../../
 ROCKSROOT       = $(CURDIR)/../../src/devel/devel
 -include $(ROCKSROOT)/etc/Rules.mk
@@ -95,9 +95,20 @@ install:: addrollvariable build
 		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
 	@echo "version_micro = \"$(VERSION.MICRO)\"" >> \
 		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
+	@echo "DatabaseSocket  = '/var/lib/rumrocks/foundation-sql/mysql.sock'" >> \
+		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
+	@echo "DatabaseMycnf = '/etc/rumrocks/mysql/my.cnf'" >> \
+		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
+	@echo "RollTemplateDir = '/usr/share/rumrocks/devel/src/roll/template'" >> \
+		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
 	$(INSTALL) -m0444 rocks-copyright.txt \
 		$(ROOT)/$(PY.ROCKS)/rocks/commands/list/license/license.txt
-
+	$(INSTALL) -m0755 bin/rocks \
+		$(ROOT)/$(PKGROOT)/bin/rumrocks
+	#compatibility with regular rocks if needed
+	rm -f $(ROOT)/$(PKGROOT)/bin/rocks
+	mkdir -p $(ROOT)/opt/rocks/bin
+	ln -s $(PKGROOT)/bin/rumrocks $(ROOT)/opt/rocks/bin/rocks
 
 clean::
 	rm -rf build

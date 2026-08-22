@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 # 
 # @Copyright@
 # 
@@ -416,7 +416,8 @@ import os
 import tempfile
 import time
 import xml.dom.NodeFilter
-import xml.dom.ext.reader.Sax2
+import xml.dom.minidom
+from lxml import etree  #replacement for xml.dom.NodeFilter
 import rocks.js
 import rocks.cond
 import yaml
@@ -424,11 +425,187 @@ import random
 	
 		
 
+#new class using lxml
+class LxmlNodeFilter:
+	def __init__(self, attrs):
+		self.attrs = attrs
+		self.phases = set(['pre', 'post'])
+
+	def set_phases(self, values):
+		""" if reconfigure is set to true we are reconfiguring 
+		if it is set to false we are installing""" 
+		self.phases = set(values)
+
+	def isCorrectCond(self, node):
+		# lxml returns None automatically if the attribute does not exist
+		arch     = node.get('arch')
+		os       = node.get('os')
+		release  = node.get('release')
+		cond     = node.get('cond')
+			# by default post section are install only
+		phaseVal = set(node.get('phase','pre,post').split(','))
+
+		if not phaseVal.intersection(self.phases):
+			return False
+
+		expr = rocks.cond.CreateCondExpr(arch, os, release, cond)
+		return rocks.cond.EvalCondExpr(expr, self.attrs)
+
+
+class Python3lxmlTreeWalker:
+    """This Helper class builds a mini-index of your lxml elements and correctly
+    tracks pointer movements through structural paths."""
+    
+    def __init__(self, root, filter_obj):
+        self.root = root
+        self.filter_obj = filter_obj
+        # Filter all elements up front based on your custom class rules
+        self.nodes = self._collect_nodes(root)
+        self.current_node = None
+        self._index = -1
+
+    def _collect_nodes(self, root):
+        results = []
+        
+        # lxml .iter() instantly walks the entire element tree flat
+        for current in root.iter():
+            # Check if filter object has acceptNode method
+            if hasattr(self.filter_obj, 'acceptNode'):
+                # In your updated filter, acceptNode returns True (equivalent to FILTER_ACCEPT)
+                if self.filter_obj.acceptNode(current) is True:
+                    results.append(current)
+            # Fallback if the filter object is callable directly
+            elif callable(self.filter_obj) and self.filter_obj(current):
+                results.append(current)
+            else:
+                # Default fallback
+                results.append(current)
+                
+        return results
+
+    def _sync_index(self, node):
+        """Helper to synchronize our sequential index pointer when jumping structurally."""
+        self.current_node = node
+        if node in self.nodes:
+            self._index = self.nodes.index(node)
+        else:
+            self._index = -1
+
+    def nextNode(self):
+        self._index += 1
+        if 0 <= self._index < len(self.nodes):
+            self.current_node = self.nodes[self._index]
+            return self.current_node
+        self.current_node = None
+        return None
+
+    def firstChild(self):
+        """Moves to and returns the first element child of the current node."""
+        if self.current_node is None:
+            return None
+            
+        # Efficiently get immediate element children using list(element) or .getchildren()
+        children = list(self.current_node)
+        if children:
+            first_child = children[0]
+            self._sync_index(first_child)
+            return first_child
+            
+        return None
+
+    def nextSibling(self):
+        """Moves to and returns the next element sibling of the current node."""
+        if self.current_node is None:
+            return None
+            
+        # lxml provides the .getnext() method natively for siblings
+        sibling = self.current_node.getnext()
+        if sibling is not None:
+            self._sync_index(sibling)
+            return sibling
+            
+        return None
+
+class Python3TreeWalker:
+	"""This Helper class builds a mini-index of your XML elements and correctly
+	tracks pointer movements through structural paths:"""
+	def __init__(self, root, filter_obj):
+		self.root = root
+		self.filter_obj = filter_obj
+		# Filter all elements up front based on your custom class rules
+		self.nodes = self._collect_nodes(root)
+		self.current_node = None
+		self._index = -1
+
+	def _collect_nodes(self, current):
+		results = []
+		# nodeType 1 = ELEMENT_NODE
+		if current.nodeType == 1:
+			# Check if filter object has acceptNode method (PyXML standard)
+			if hasattr(self.filter_obj, 'acceptNode'):
+				if self.filter_obj.acceptNode(current) == 1: # 1 = FILTER_ACCEPT
+					results.append(current)
+			# Fallback if the filter object is callable directly
+			elif callable(self.filter_obj) and self.filter_obj(current):
+				results.append(current)
+			elif getattr(self.filter_obj, 'SHOW_ELEMENT', 1) == 1:
+				# Fallback if no specific filter constraints matched
+				results.append(current)
+
+		for child in current.childNodes:
+			results.extend(self._collect_nodes(child))
+		return results
+
+	def nextNode(self):
+		self._index += 1
+		if 0 <= self._index < len(self.nodes):
+			self.current_node = self.nodes[self._index]
+			return self.current_node
+		self.current_node = None
+		return None
+
+	def firstChild(self):
+		"""Moves to and returns the first element child of the current node."""
+		if not self.current_node:
+			return None
+		# Look for the first structural element child under current_node
+		for child in self.current_node.childNodes:
+			if child.nodeType == 1: # Element node
+				self.current_node = child
+				# Synchronize our sequential index pointer
+				if child in self.nodes:
+					self._index = self.nodes.index(child)
+				return child
+		return None
+
+    
+	def nextSibling(self):
+		"""Moves to and returns the next element sibling of the current node."""
+		if not self.current_node:
+			return None
+		parent = self.current_node.parentNode
+		if not parent:
+			return None
+        
+		# Look for the next element sibling within parent children
+		found_current = False
+		for child in parent.childNodes:
+			if child == self.current_node:
+				found_current = True
+				continue
+            
+			if found_current and child.nodeType == 1:
+				self.current_node = child
+				if child in self.nodes:
+					self._index = self.nodes.index(child)
+				return child
+		return None
+
 class NodeFilter(xml.dom.NodeFilter.NodeFilter):
 
 	def __init__(self, attrs):
 		self.attrs = attrs
-                self.phases = set(['pre','post'])
+		self.phases = set(['pre','post'])
 
 	def set_phases(self, values):
 		""" if reconfigure is set to true we are reconfiguring 
@@ -497,16 +674,11 @@ class Generator:
 		return self.os
 
 	def isDisabled(self, node):
-		return node.attributes.getNamedItem((None, 'disable'))
+		return node.get('disable')
 
 	def isMeta(self, node):
-		attr  = node.attributes
-		type  = attr.getNamedItem((None, 'type'))
-		if type:
-			type = type.value
-		else:
-			type = 'rpm'
-		if type  == 'meta':
+		type_val = node.get('type','rpm')
+		if type_val == 'meta':
 			return 1
 		return 0
 	
@@ -535,7 +707,7 @@ class Generator:
 			l.append('\tif [ ! -d %s ]; then' % rcsdir)
 			l.append('\t\tmkdir -m 700 %s' % rcsdir)
 			l.append('\t\tchown 0:0 %s' % rcsdir)
-		 	l.append('\tfi;')
+			l.append('\tfi;')
 			l.append('\techo "original" | /opt/rocks/bin/ci %s;' %
 			 	file)
 			l.append('\t/opt/rocks/bin/co -f -l %s;' % file)
@@ -559,7 +731,7 @@ class Generator:
 
 		l.append('')
 
-		return string.join(l, '\n')
+		return '\n'.join(l)
 
 	def rcsEnd(self, file, owner, perms):
 		"""
@@ -588,7 +760,7 @@ class Generator:
 		if perms:
 			l.append('chmod %s %s' % (perms, file))
 
-		return string.join(l, '\n')
+		return '\n'.join(l)
 
 	
 	def order(self, node):
@@ -596,76 +768,36 @@ class Generator:
 		Stores the order of traversal of the nodes
 		Useful for debugging.
 		"""
-		attr = node.attributes
 		
-		if attr.getNamedItem((None, 'file')):
-			file = attr.getNamedItem((None, 'file')).value
-		else:
-			file = ''
-		if attr.getNamedItem((None, 'roll')):
-			roll = attr.getNamedItem((None, 'roll')).value
-		else:
-			roll = ''
+		file = node.get('file','')
+		roll = node.get('roll','')
 			
 		if (file,roll) not in self.ks['order']:
 			self.ks['order'].append((file,roll))
 		
 	def handle_mainChild(self, node):
 		try:
-			eval('self.handle_main_%s(node)' % node.nodeName)
+			eval('self.handle_main_%s(node)' % node.tag)
 		except AttributeError:
-			self.ks['main'].append('%s %s' % (node.nodeName,
+			self.ks['main'].append('%s %s' % (node.tag,
 				self.getChildText(node)))
 
 		
 	def parseFile(self, node):
-		attr = node.attributes
+		# Use node.get() to safely pull values or assign fallback defaults
+		os = node.get('os')
+		# Filter early based on OS compatibility
+		if os is not None and os != self.getOS():
+			return ''
 
-		if attr.getNamedItem((None, 'os')):
-			os = attr.getNamedItem((None, 'os')).value
-			if os != self.getOS():
-				return ''
-
-		if attr.getNamedItem((None, 'name')):
-			fileName = attr.getNamedItem((None, 'name')).value
-		else:
-			fileName = ''
-
-		if attr.getNamedItem((None, 'src')):
-			source = attr.getNamedItem((None, 'src')).value
-		else:
-			source = ''
-
-		if attr.getNamedItem((None, 'mode')):
-			fileMode = attr.getNamedItem((None, 'mode')).value
-		else:
-			fileMode = 'create'
-
-		if attr.getNamedItem((None, 'owner')):
-			fileOwner = attr.getNamedItem((None, 'owner')).value
-		else:
-			fileOwner = ''
-
-		if attr.getNamedItem((None, 'perms')):
-			filePerms = attr.getNamedItem((None, 'perms')).value
-		else:
-			filePerms = ''
-
-		if attr.getNamedItem((None, 'vars')):
-			fileQuoting = attr.getNamedItem((None, 'vars')).value
-		else:
-			fileQuoting = 'literal'
-
-		if attr.getNamedItem((None, 'expr')):
-			fileCommand = attr.getNamedItem((None, 'expr')).value
-		else:
-			fileCommand = None
-
-		if attr.getNamedItem((None, 'rcs')):
-			rcs = attr.getNamedItem((None, 'rcs')).value
-			rcs = rocks.util.str2bool(rcs)
-		else:
-			rcs = True
+		fileName = node.get('name', '')
+		source   = node.get('src', '')
+		fileMode = node.get('mode', 'create')
+		fileOwner = node.get('owner', '')
+		filePerms = node.get('perms', '')
+		fileQuoting = node.get('vars','literal')
+		fileCommand = node.get('expr')
+		rcs         = rocks.util.str2bool(node.get('rcs','True'))
 
 		fileText = self.getChildText(node)
 
@@ -723,12 +855,11 @@ class Generator:
 
 	def getChildText(self, node):
 		text = ''
-		for child in node.childNodes:
-			if child.nodeType == child.TEXT_NODE:
-				text += child.nodeValue
-			elif child.nodeType == child.ELEMENT_NODE:
-				text += eval('self.handle_child_%s(child)' \
-					% (child.nodeName))
+		if node.text:
+			text += node.text
+		for child in node:
+			text += eval('self.handle_child_%s(child)' \
+				% (child.tag))
 		return text
 
 	
@@ -746,38 +877,38 @@ class Generator:
 	def generate(self, section):
 		"""Dump the requested section of the kickstart file.  If none 
 		exists do nothing."""
-		list = []
+		list_section = []
 		try:
 			f = getattr(self, "generate_%s" % section)
 		except AttributeError:
 			f = None
 		if f:
-			list += f()
-		return list
+			list_section += f()
+		return list_section
 		
 	def generate_order(self):
-		list = []
-		list.append('#')
-		list.append('# Node Traversal Order')
-		list.append('#')
+		list_order = []
+		list_order.append('#')
+		list_order.append('# Node Traversal Order')
+		list_order.append('#')
 		for (line,roll) in self.ks['order']:
 			if roll:
-				list.append('# %s (%s)' % (line, roll))
+				list_order.append('# %s (%s)' % (line, roll))
 			else:
-				list.append('# %s' % (line))
-		list.append('#')
-		return list
+				list_order.append('# %s' % (line))
+		list_order.append('#')
+		return list_order
 
 	def generate_debug(self):
-		list = []
-		list.append('#')
-		list.append('# Debugging Information')
-		list.append('#')
+		list_debug = []
+		list_debug.append('#')
+		list_debug.append('# Debugging Information')
+		list_debug.append('#')
 		for text in self.ks['debug']:
-			for line in string.split(text, '\n'):
-				list.append('# %s' % line)
-		list.append('#')
-		return list
+			for line in text.split('\n'):
+				list_debug.append('# %s' % line)
+		list_debug.append('#')
+		return list_debug
 			
 
 
@@ -834,6 +965,60 @@ class MainNodeFilter_linux(NodeFilter):
 
 		return self.FILTER_ACCEPT
 
+class MainNodeFilter_linux(LxmlNodeFilter):
+
+	def acceptNode(self, node):
+		# xml.dom nodeName matches lxml's node.tag
+		if node.tag == 'kickstart':
+			return True  # Native True/False replaces FILTER_ACCEPT/FILTER_SKIP
+
+		allowed_tags = [
+			'include',
+			'main',
+			'auth',
+			'clearpart',
+			'autopart',
+			'device',
+			'driverdisk',
+			'eula',
+			'firstboot',
+			'ignoredisk',
+			'install',
+			'nfs',
+			'cdrom',
+			'interactive',
+			'harddrive',
+			'url',
+			'keyboard',
+			'lang',
+			'langsupport',
+			'lilo',
+			'lilocheck',
+			'bootloader',
+			'mouse',
+			'network',
+			'part',
+			'volgroup',
+			'logvol',
+			'raid',
+			'reboot',
+			'rootpw',
+			'skipx',
+			'sshpw',
+			'text',
+			'timezone',
+			'upgrade',
+			'xconfig',
+			'zerombr'
+		]
+
+		if node.tag not in allowed_tags:
+			return False
+
+		if not self.isCorrectCond(node):
+			return False
+
+		return True
 
 class OtherNodeFilter_linux(NodeFilter):
 	def acceptNode(self, node):
@@ -858,6 +1043,32 @@ class OtherNodeFilter_linux(NodeFilter):
 			return self.FILTER_SKIP
 
 		return self.FILTER_ACCEPT
+
+class OtherNodeFilter_linux(LxmlNodeFilter):
+	def acceptNode(self, node):
+		# xml.dom nodeName matches lxml's node.tag
+		if node.tag == 'kickstart':
+			return True  # Native True/False replaces FILTER_ACCEPT/FILTER_SKIP
+
+		allowed_tags = [
+			'attributes', 
+			'debug',
+			'description',
+			'package',
+			'pre', 
+			'post',
+			'boot',
+			'configure',
+			'ansible'
+		]
+
+		if node.tag not in allowed_tags:
+			return False
+
+		if not self.isCorrectCond(node):
+			return False
+
+		return True
 
 
 class Generator_linux(Generator):
@@ -900,18 +1111,23 @@ class Generator_linux(Generator):
 	##
 	
 	def parse(self, xml_string):
-		import cStringIO
-		xml_buf = cStringIO.StringIO(xml_string)
-		doc = xml.dom.ext.reader.Sax2.FromXmlStream(xml_buf)
+		import io
+#		print(f"xml_string value: {repr(xml_string)}, type: {type(xml_string)}")
+		xml_buf = io.StringIO(xml_string)
+#		print(f"xml_buf value: {repr(xml_buf)}, type: {type(xml_buf)}")
+#		doc = xml.dom.minidom.parseString(xml_string)
+		doc = etree.parse(xml_buf).getroot()
 		filter = MainNodeFilter_linux(self.attrs)
-		iter = doc.createTreeWalker(doc, filter.SHOW_ELEMENT,
-			filter, 0)
+#		show_element_1 = getattr(filter, 'SHOW_ELEMENT', 1) 
+		iter = Python3lxmlTreeWalker(doc, filter)
+#		iter = doc.createTreeWalker(doc, filter.SHOW_ELEMENT,
+#			filter, 0)
 		node = iter.nextNode()
 		
-		while node:
-			if node.nodeName == 'kickstart':
+		while node is not None:
+			if node.tag == 'kickstart':
 				self.handle_kickstart(node)
-			elif node.nodeName == 'main':
+			elif node.tag == 'main':
 				child = iter.firstChild()
 				while child:
 					self.handle_mainChild(child)
@@ -921,13 +1137,15 @@ class Generator_linux(Generator):
 			
 		filter = OtherNodeFilter_linux(self.attrs)
 		filter.set_phases(self.phases)
-		iter = doc.createTreeWalker(doc, filter.SHOW_ELEMENT,
-			filter, 0)
+#		show_element_2 = getattr(filter, 'SHOW_ELEMENT', 1)
+		iter = Python3lxmlTreeWalker(doc, filter)
+#		iter = doc.createTreeWalker(doc, filter.SHOW_ELEMENT,
+#			filter, 0)
 		node = iter.nextNode()
-		while node:
-			if node.nodeName != 'kickstart':
+		while node is not None:
+			if node.tag != 'kickstart':
 				self.order(node)
-				eval('self.handle_%s(node)' % (node.nodeName))
+				eval('self.handle_%s(node)' % (node.tag))
 			node = iter.nextNode()
 
 
@@ -938,23 +1156,19 @@ class Generator_linux(Generator):
 		# this replaces the old arch/os logic but still
 		# supports the old syntax
 
-		if node.attributes:
-			attrs = node.attributes.getNamedItem((None, 'attrs'))
-			if attrs:
-				dict = eval(attrs.value)
-				for (k,v) in dict.items():
-					self.attrs[k] = v
+		attrs = node.get('attrs')
+		if attrs:
+			attrs_dict = eval(attrs)
+			for k, v in attrs_dict.items():
+				self.attrs[k] = v
+		
 		
 	# <main>
 	#	<clearpart>
 	# </main>
 	
 	def handle_main_clearpart(self, node):
-		attr = node.attributes
-		if attr.getNamedItem((None, 'partition')):
-			arg = attr.getNamedItem((None, 'partition')).value
-		else:
-			arg = ''
+		arg = node.get('partition','')
 
 		#
 		# the web form sets the environment variable 'partition'
@@ -1082,69 +1296,53 @@ class Generator_linux(Generator):
 	# <pre>
 	
 	def handle_pre(self, node):
-		attr = node.attributes
 		# Parse the interpreter attribute
-		if attr.getNamedItem((None, 'interpreter')):
+		if node.get('interpreter'):
 			interpreter = '--interpreter ' + \
-				attr.getNamedItem((None, 'interpreter')).value
+				node.get('interpreter')
 		else:
 			interpreter = ''
+		# Pull attributes cleanly with default fallbacks
+#		interpreter_val = node.get('interpreter')
+#		interpreter = f'--interpreter {interpreter_val}' if interpreter_val else ''
+
 		# Parse any additional arguments to the interpreter
 		# or to the post section
-		if attr.getNamedItem((None, 'arg')):
-			arg = attr.getNamedItem((None, 'arg')).value
-		else:
-			arg = ''
-		list = []
-		list.append(string.strip(string.join([interpreter, arg])))
-		list.append(self.getChildText(node))
-		self.ks['pre'].append(list)
+		arg = node.get('arg', '')
+
+		pre_block = []
+		pre_block.append(arg.join(interpreter).strip())
+		pre_block.append(self.getChildText(node))
+		self.ks['pre'].append(pre_block)
 
 	# <post>
 	
 	def handle_post(self, node):
-		attr = node.attributes
 		# Parse the interpreter attribute
-		if attr.getNamedItem((None, 'interpreter')):
-			interpreter = \
-				attr.getNamedItem((None, 'interpreter')).value
-		else:
-			interpreter = '/bin/bash'
+		interpreter = node.get('interpreter', '/bin/bash')
+
 		# Parse any additional arguments to the interpreter
 		# or to the post section
-		if attr.getNamedItem((None, 'arg')):
-			arg = attr.getNamedItem((None, 'arg')).value
-		else:
-			arg = ''
-		list = []
+		arg = node.get('arg', '')
+		post_block = []
 		# Add the args to the %post line
-		list.append(string.strip(arg))
+		post_block.append(arg.strip())
 		# Add the interpreter to use for this post section
-		list.append(string.strip('#!%s' % interpreter))
-		list.append(self.getChildText(node))
+		post_block.append(('#!%s' % interpreter).strip())
+		post_block.append(self.getChildText(node))
 		if not self.ansblOnly:
-			self.ks['post'].append(list)
+			self.ks['post'].append(post_block)
 
 
 	# <ansible>
 	def parse_ansible(self,node):
-		attr = node.attributes
 		# Parse playbook attribute
-		try:
-			book = attr.getNamedItem((None,'playbook')).value
-		except:
-			book = None			
-
+		book = node.get('playbook')
 		# Parse ansible_cmd attribute
-		try:
-			cmd = attr.getNamedItem((None,'ansible_cmd')).value
-		except:
-			cmd = '/usr/bin/ansible-playbook'			
+		cmd  = node.get('ansible_cmd','/usr/bin/ansible-playbook')
 		# Parse args attribute
-		try:
-			args = attr.getNamedItem((None,'args')).value
-		except:
-			args = ''			
+		args = node.get('args','')
+
 		return (book, cmd, args)
 
 	def write_playbook(self,ymlfile,lines):
@@ -1186,10 +1384,7 @@ class Generator_linux(Generator):
 			lines = playbook.readlines()	
 			book=os.path.basename(book)
 		else:
-			try:
-				nodename = node.attributes.getNamedItem((None,'file')).value
-			except:
-				nodename = self.randomString(len=8,basename='rocks-ansible-')
+			nodename = node.get('file',self.randomString(len=8,basename='rocks-ansible-'))
 
 			book = nodename + ".yml"
 			
@@ -1234,7 +1429,7 @@ class Generator_linux(Generator):
 		ydata =  yaml.load(yString)
 		ye = []
 		try:
-			tasks = map(lambda x: x['tasks'],filter(lambda x : x.has_key('tasks'),ydata))
+			tasks = [x['tasks'] for x in [x for x in ydata if 'tasks' in x]]
 		except:
 			return ([],[])
 
@@ -1244,14 +1439,12 @@ class Generator_linux(Generator):
 					ye.append(task['yum'])	
 				except:
 					pass
-		yumentries = filter(lambda x: x.has_key('state') and x.has_key('name'), ye)
+		yumentries = [x for x in ye if 'state' in x and 'name' in x]
 	
 		installStates = ('present','latest','installed')
 		removeStates = ('absent','removed')
-		iPkgs = map(lambda x: x['name'], 
-			filter(lambda x: any(ext in x['state'] for ext in installStates),yumentries))
-		dPkgs = map(lambda x: x['name'], 
-			filter(lambda x: any(ext in x['state'] for ext in removeStates),yumentries))
+		iPkgs = [x['name'] for x in [x for x in yumentries if any(ext in x['state'] for ext in installStates)]]
+		dPkgs = [x['name'] for x in [x for x in yumentries if any(ext in x['state'] for ext in removeStates)]]
 		return(iPkgs,dPkgs)
 
 	def write_metaplaybook(self, playbooks):
@@ -1292,41 +1485,37 @@ class Generator_linux(Generator):
 	# <boot>
 	
 	def handle_boot(self, node):
-		attr = node.attributes
-		if attr.getNamedItem((None, 'order')):
-			order = attr.getNamedItem((None, 'order')).value
-		else:
-			order = 'pre'
+		order = node.get('order','pre')
 
 		self.ks['boot-%s' % order].append(self.getChildText(node))
 
 
 	def generate_main(self):
-		list = []
-		list.append('')
-		list += self.ks['main']
-		return list
+		main_block = []
+		main_block.append('')
+		main_block += self.ks['main']
+		return main_block
 
 	def generate_packages(self):
-		list = []
-		list.append('%packages --ignoremissing')
+		pkg_block = []
+		pkg_block.append('%packages --ignoremissing')
 		self.ks['rpms-on'].sort()
 		for e in self.ks['rpms-on']:
-			list.append(e)
+			pkg_block.append(e)
 		self.ks['rpms-off'].sort()
 		for e in self.ks['rpms-off']:
-			list.append('-' + e)
-		list.append('%end')
-		return list
+			pkg_block.append('-' + e)
+		pkg_block.append('%end')
+		return pkg_block
 
 	def generate_pre(self):
 		pre_list = []
 		pre_list.append('')
 
-		for list in self.ks['pre']:
+		for listks in self.ks['pre']:
 			pre_list.append('%%pre --log=/tmp/ks-pre.log %s' %
-				list[0])
-			pre_list.append(string.join(list[1:], '\n'))
+				listks[0])
+			pre_list.append('\n'.join(listks[1:]))
 			pre_list.append('%end\n')
 			
 		return pre_list
@@ -1345,10 +1534,10 @@ class Generator_linux(Generator):
 		if self.ansblOnly:
 			self.write_metaplaybook(self.ks['playbooks'])	
 
-		for list in self.ks['post']:
+		for listks in self.ks['post']:
 			post_list.append('%%post --log=%s %s\n' % \
-				(self.log, list[0]))
-			post_list += self._generate_config_script(list)
+				(self.log, listks[0]))
+			post_list += self._generate_config_script(listks)
 			post_list.append('%end\n')
 
 		return post_list
@@ -1360,16 +1549,16 @@ class Generator_linux(Generator):
 		post_list = []
 		post_list.append('')
 
-		for list in self.ks['post']:
-			if list[0] == "--nochroot":
+		for listks in self.ks['post']:
+			if listks[0] == "--nochroot":
 				# there is not such a thing
 				continue
-			post_list += self._generate_config_script(list)
+			post_list += self._generate_config_script(listks)
 
 		return post_list
 
 
-	def _generate_config_script(self, list):
+	def _generate_config_script(self, list_in):
 		""" generate a generic script which can be enbeded in kickstart of
 		run roll """
 		temp_list = []
@@ -1377,8 +1566,8 @@ class Generator_linux(Generator):
 		# Create a 'HERE' document that is executed
 		temp_list.append("cat > %s << 'ROCKS-KS-POST'\n" % tmpfile)
 		# Shell interpreter (python, bash, etc)
-		temp_list.append('%s\n' % list[1])
-		temp_list.append(string.join(list[2:], '\n'))
+		temp_list.append('%s\n' % list_in[1])
+		temp_list.append('\n'.join(list_in[2:]))
 		temp_list.append('\nROCKS-KS-POST\n')
 		# Chmod and execute the shell script just created
 		temp_list.append('/bin/chmod +x %s\n' % tmpfile)
@@ -1388,40 +1577,40 @@ class Generator_linux(Generator):
 		return temp_list
 
 	def generate_boot(self):
-		list = []
-		list.append('')
-		list.append('%%post --log=%s' % self.log)
+		boot_gen = []
+		boot_gen.append('')
+		boot_gen.append('%%post --log=%s' % self.log)
 		
 		# Boot PRE
 		#	- check in/out all modified files
 		#	- write the <boot order="pre"> text
 		
-		list.append('')
-		list.append('cat >> /etc/sysconfig/rocks-pre << EOF')
+		boot_gen.append('')
+		boot_gen.append('cat >> /etc/sysconfig/rocks-pre << EOF')
 
-		for (file, (owner, perms)) in self.rcsFiles.items():
+		for (file, (owner, perms)) in list(self.rcsFiles.items()):
 			s = self.rcsEnd(file, owner, perms)
-			list.append(s)
+			boot_gen.append(s)
 
 		for l in self.ks['boot-pre']:
-			list.append(l)
+			boot_gen.append(l)
 
-		list.append('EOF')
+		boot_gen.append('EOF')
 
 		# Boot POST
 		#	- write the <boot order="post"> text
 		
-		list.append('')
-		list.append('cat >> /etc/sysconfig/rocks-post << EOF')
+		boot_gen.append('')
+		boot_gen.append('cat >> /etc/sysconfig/rocks-post << EOF')
 
 		for l in self.ks['boot-post']:
-			list.append(l)
+			boot_gen.append(l)
 
-		list.append('EOF')
-		list.append('')
-		list.append('%end\n')
+		boot_gen.append('EOF')
+		boot_gen.append('')
+		boot_gen.append('%end\n')
 		
-		return list
+		return boot_gen
 
 		
 class MainNodeFilter_sunos(NodeFilter):
@@ -1541,9 +1730,9 @@ class Generator_sunos(Generator):
 		Creates an XML tree representation of the XML string,
 		decompiles it, and parses the string.
 		"""
-		import cStringIO
-		xml_buf = cStringIO.StringIO(xml_string)
-		doc = xml.dom.ext.reader.Sax2.FromXmlStream(xml_buf)
+		import io
+		xml_buf = io.StringIO(xml_string)
+		doc = xml.dom.minidom.parseString(xml_buf)
 		filter = MainNodeFilter_sunos(self.attrs)
 		iter = doc.createTreeWalker(doc, filter.SHOW_ELEMENT,
 			filter, 0)
@@ -1589,7 +1778,7 @@ class Generator_sunos(Generator):
 			attrs = node.attributes.getNamedItem((None, 'attrs'))
 			if attrs:
 				dict = eval(attrs.value)
-				for (k,v) in dict.items():
+				for (k,v) in list(dict.items()):
 					self.attrs[k] = v
 
 	# <main>
@@ -1668,7 +1857,7 @@ class Generator_sunos(Generator):
 		while child:
 			auto_reg[child.nodeName] = self.getChildText(child).strip()
 			child = iter.nextSibling()
-		if not auto_reg.has_key('type'):
+		if 'type' not in auto_reg:
 			self.ks['sysidcfg'].append('auto_reg=disable')
 			return
 		auto_reg_type = auto_reg.pop('type')
@@ -1752,7 +1941,7 @@ class Generator_sunos(Generator):
 		else:
 			enabled='true'
 
-		if not self.service_instances.has_key(name):
+		if name not in self.service_instances:
 			self.service_instances[name] = []
 		self.service_instances[name].append((instance,enabled))
 		# This is only to placate the getChildText
@@ -1773,7 +1962,7 @@ class Generator_sunos(Generator):
 			else:
 				net[child.nodeName] = self.getChildText(child).strip()
 			child = iter.nextSibling()
-		if not net.has_key('interface'):
+		if 'interface' not in net:
 			net['interface'] = 'PRIMARY'
 		self.ks['sysidcfg'].append("network_interface=%s{" %
 			net.pop('interface'))
@@ -1853,7 +2042,7 @@ class Generator_sunos(Generator):
 			list.append("chroot /a /tmp/post_section_%d %s"
 					% (self.finish_section, arg))
 		else:
-			if interpreter is not '/bin/sh':
+			if interpreter != '/bin/sh':
 				list.append("cat > /tmp/post_section_%d "
 					"<< '__eof__'"
 					% self.finish_section)
@@ -1928,7 +2117,7 @@ class Generator_sunos(Generator):
 		for i in self.ks['pkg_off']:
 			list.append('package\t%s\tdelete' % i)
 		if len(self.ks['patch']) > 0:
-			patch_list = string.join(self.ks['patch'],',')
+			patch_list = ','.join(self.ks['patch'])
 			list.append('patch %s local_file /cdrom/Solaris_10/Patches' % patch_list)
 
 		return list
@@ -1957,27 +2146,27 @@ class Generator_sunos(Generator):
 
 		if len(self.service_instances) == 0:
 			return []
-		list= []
+		list_services= []
 
-		list.append("cat > /a/var/svc/profile/site.xml << '_xml_eof_'")
+		list_services.append("cat > /a/var/svc/profile/site.xml << '_xml_eof_'")
 		# XML Headers, and doctype
-		list.append("<?xml version='1.0'?>")
-		list.append("<!DOCTYPE service_bundle SYSTEM "
+		list_services.append("<?xml version='1.0'?>")
+		list_services.append("<!DOCTYPE service_bundle SYSTEM "
 			"'/usr/share/lib/xml/dtd/service_bundle.dtd.1'>")
 
 		# Start service bundle
-		list.append("<service_bundle type='profile' name='site'"
+		list_services.append("<service_bundle type='profile' name='site'"
 			"\n\txmlns:xi='http://www.w3.org/2001/XInclude' >")
 
-		for i in self.service_instances.keys():
-			list.append("\t<service name='%s' version='1' type='service'>" % i)
+		for i in list(self.service_instances):
+			list_services.append("\t<service name='%s' version='1' type='service'>" % i)
 			for j in self.service_instances[i]:
-				list.append("\t\t<instance name='%s' enabled='%s'/>" \
+				list_services.append("\t\t<instance name='%s' enabled='%s'/>" \
 						% (j[0], j[1]))
-			list.append("\t</service>")
+			list_services.append("\t</service>")
 
 		# End Service bundle
-		list.append("</service_bundle>")
-		list.append('_xml_eof_')
+		list_services.append("</service_bundle>")
+		list_services.append('_xml_eof_')
 
-		return list
+		return list_services

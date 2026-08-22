@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 #
 #################################################################################
 #
@@ -155,7 +155,7 @@ class Password:
 		m = md5.new(salt)
 		m.update(passwd)
 		tmp_hash = m.digest()
-		for i in xrange(count):
+		for i in range(count):
 			m = md5.new(tmp_hash)
 			m.update(passwd)
 			tmp_hash = m.digest()
@@ -192,20 +192,20 @@ class Enc:
 		except ImportError:
 			import sha 
 			s = sha.new(value)
-        	return s.hexdigest()
+		return s.hexdigest()
                                                 
-        def enc_shasha(self, value):
+	def enc_shasha(self, value):
 		try:
 			import hashlib
 			s = hashlib.sha1(value)
 			t = hashlib.sha1(s.digest())
 		except ImportError:
 			import sha
-	        	s = sha.new(value)
+			s = sha.new(value)
 			t = sha.new(s.digest())
 		return t.hexdigest()
 
-        def enc_crypt(self, value):
+	def enc_crypt(self, value):
         	salt = '$1$'
         	for i in range(0, 8):
         		salt += random.choice(
@@ -213,6 +213,6 @@ class Enc:
         		string.digits + './')
         	return crypt.crypt(value, salt)
         
-        def enc_portable(self, value):
+	def enc_portable(self, value):
         	p = Password()
         	return p.create_password(value)

@@ -187,7 +187,7 @@ class Command(rocks.commands.create.command):
 
 
 	def mirror(self, mirror_path):
-		cmd = 'wget -erobots=off -m -nv -np %s' % (mirror_path)
+		cmd = 'wget -erobots=off -m -nv -np -4 %s' % (mirror_path)
 		os.system(cmd)
 
 		if len(mirror_path) > 6:
@@ -195,11 +195,12 @@ class Command(rocks.commands.create.command):
 				mirrordir = mirror_path[6:]
 			elif mirror_path[0:7] == 'http://':
 				mirrordir = mirror_path[7:]
+			elif mirror_path[0:8] == 'https://':
+				mirrordir = mirror_path[8:]
 			else:
 				mirrordir = mirror_path
 
 		os.symlink(mirrordir, 'RPMS')
-
 
 	def makeRollXML(self, rollname, version, arch, xmlfilename):
 		file = open(xmlfilename, 'w')

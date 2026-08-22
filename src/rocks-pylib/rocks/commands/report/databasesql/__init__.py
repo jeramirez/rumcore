@@ -1,4 +1,4 @@
-#!/opt/rocks/bin/python
+#!/usr/bin/env python
 #
 # @Copyright@
 # 
@@ -70,7 +70,7 @@ import rocks.db.mappings
 # dump mysql code
 #
 def dump(sql, *multiparams, **params):
-    print sql.compile(dialect=engine.dialect), ';'
+    print(sql.compile(dialect=engine.dialect), ';')
 
 engine = sqlalchemy.create_engine('mysql://', strategy='mock', executor=dump)
 
@@ -113,7 +113,7 @@ class Command(rocks.commands.report.command):
 			self.abort("module %s does not exists in "
 					"rocks.db.mappings" % component)
 
-		from sqlalchemy.ext.declarative.api import DeclarativeMeta
+		from sqlalchemy.orm.decl_api import DeclarativeMeta
 		from rocks.db.mappings.base import RocksBase
 
 		for name, table in inspect.getmembers(mod):
@@ -133,7 +133,7 @@ class Command(rocks.commands.report.command):
 					component + ".sql")
 		if os.path.exists(extra_sql_path):
 			f = open(extra_sql_path)
-			print f.read()
+			print(f.read())
 			f.close()
 
 	

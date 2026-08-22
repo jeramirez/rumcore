@@ -243,7 +243,7 @@ class Builder:
 		pass
 				
 	def mkisofs(self, isoName, rollName, diskName, rollDir, volname=None):
-		print 'Building ISO image for %s ...' % diskName
+		print('Building ISO image for %s ...' % diskName)
 
 		if self.config.isBootable():
 			extraflags = self.config.getISOFlags()
@@ -265,34 +265,34 @@ class Builder:
 
 
 		os.chdir(rollDir)
-		print "mkisofs: %s" % cmd
+		print("mkisofs: %s" % cmd)
 		rocks.util.system(cmd, 'spinner')
 		os.chdir(cwd)
 
 	def implantMD5(self,isoname):
 		cwd = os.getcwd()
 		cmd = 'implantisomd5 --supported-iso %s' % (os.path.join(cwd, isoname))
-		print "implantMD5: %s" % cmd
+		print("implantMD5: %s" % cmd)
 		rocks.util.system(cmd)
 
 	def makeHybrid(self,isoname):
 		cwd = os.getcwd()
 		cmd = 'isohybrid -v --uefi %s' % (os.path.join(cwd, isoname))
-		print "makeHybrid: %s" % cmd
+		print("makeHybrid: %s" % cmd)
 		rocks.util.system(cmd)
 
 		
-	def copyFile(self, path, file, root):
-		if file.getName() in [ 'TRANS.TBL' ]:
+	def copyFile(self, path, filenm, root):
+		if filenm.getName() in [ 'TRANS.TBL' ]:
 			return
 
 		dir	 = os.path.join(root, path)
-		fullname = os.path.join(dir, file.getName())
+		fullname = os.path.join(dir, filenm.getName())
 		if not os.path.isdir(dir):
 			os.makedirs(dir)
 
-		shutil.copy(file.getFullName(), fullname)
-		os.utime(fullname, (file.getTimestamp(), file.getTimestamp()))
+		shutil.copy(filenm.getFullName(), fullname)
+		os.utime(fullname, (filenm.getTimestamp(), filenm.getTimestamp()))
 
 
 	def copyRoll(self, roll, dir):
@@ -307,10 +307,10 @@ class Builder:
 
 
 	def stampDisk(self, dir, name, arch, id=1):
-		file = os.path.join(dir, '.discinfo')
-		if os.path.isfile(file):
-			os.unlink(file)
-		fout = open(file, 'w')
+		filenm = os.path.join(dir, '.discinfo')
+		if os.path.isfile(filenm):
+			os.unlink(filenm)
+		fout = open(filenm, 'w')
 		fout.write('%f\n' % time.time())
 		fout.write('%s\n' % name)
 		fout.write('%s\n' % arch)
@@ -321,10 +321,10 @@ class Builder:
 
 class RollBuilder_linux(Builder, rocks.dist.Arch):
 
-	def __init__(self, file, command):
+	def __init__(self, filenm, command):
 		Builder.__init__(self)
 		rocks.dist.Arch.__init__(self)
-		self.config = rocks.file.RollInfoFile(file)
+		self.config = rocks.file.RollInfoFile(filenm)
 		self.setArch(self.config.getRollArch())
 		self.command = command
 		self.CDlabel = "%s %s %s" % ("Rocks",rocks.version,self.getArch())
@@ -362,32 +362,32 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 		versions of a package are found only the most recent one will
 		be included (just like rocks-dist)"""
 		
-		dict = {}
+		dict_rpms = {}
 		tree = rocks.file.Tree(os.path.join(os.getcwd(), path))
 		for dir in tree.getDirs():
-			for file in tree.getFiles(dir):
+			for filenm in tree.getFiles(dir):
 				try:
-					file.getPackageName()
+					filenm.getPackageName()
 				except AttributeError:
 					continue # skip all non-rpm files
 					
 				# Skip RPMS for other architecures
 				
-				if file.getPackageArch() not in self.getCPUs():
+				if filenm.getPackageArch() not in self.getCPUs():
 					continue
 					
 				# Resolve package versions
 				
-				name = file.getUniqueName()
-				if not dict.has_key(name) or file >= dict[name]:
-					dict[name] = file
+				name = filenm.getUniqueName()
+				if name not in dict_rpms or filenm >= dict_rpms[name]:
+				        dict_rpms[name] = filenm
 					
 		# convert the dictionary to a list and return all the RPMFiles
 		
-		list = []
-		for e in dict.keys():
-			list.append(dict[e])
-		return list
+		list_rpms = []
+		for e in list(dict_rpms):
+			list_rpms.append(dict_rpms[e])
+		return list_rpms
 
 
 	def spanDisks(self, files, disks=[]):
@@ -412,14 +412,14 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 		# SRPMS but this will not be preserved.  A large RPM could
 		# be bumped from the CD and SRMPS backfilled in its place.
 		
-		for file in files:
-			if file and infinite:
-				consumed.append(file)
-			elif file and (avail - file.getSize()) > 0:
-				consumed.append(file)
-				avail -= file.getSize()
+		for filenm in files:
+			if filenm and infinite:
+				consumed.append(filenm)
+			elif filenm and (avail - filenm.getSize()) > 0:
+				consumed.append(filenm)
+				avail -= filenm.getSize()
 			else:
-				remaining.append(file)
+				remaining.append(filenm)
 		
 		id	= len(disks) + 1
 		name	= 'disk%d' % id
@@ -439,7 +439,7 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 		# the everything appliance.  This gives us a list of RPMs that
 		# we know we need from the source os/updates CDs.
 
-		print 'making rocks-dist-all'
+		print('making rocks-dist-all')
 
 		cwd = os.getcwd()
 
@@ -485,7 +485,7 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 		# code.  We need this since anaconda and comps are missing
 		# from the foreign rolls (os/update CDs).
 
-		print 'making rocks-dist-os'
+		print('making rocks-dist-os')
 		del os.environ['RPMHOME']
 
 		distOS = rocks.roll.Distribution(self.getDistArch(), 
@@ -498,8 +498,8 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 		comps = os.path.join(distOS.getPath(), 'RedHat', 'base',
 			'comps.xml')
 		if not os.path.exists(comps):
-			print '\n\tCould not find a comps.xml file.'
-			print '\tCopy a comps.xml file into the CentOS roll\n'
+			print('\n\tCould not find a comps.xml file.')
+			print('\tCopy a comps.xml file into the CentOS roll\n')
 			sys.exit(-1)
 
 		#
@@ -509,8 +509,10 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 			pyver='2.4'
 		elif rocks.version.split('.')[0] == '6':
 			pyver='2.6'
-		else:
+		elif rocks.version.split('.')[0] == '7':
 			pyver='2.7'
+		else:
+			pyver='3.9'
 		sys.path.append('/usr/lib/python%s/site-packages' % pyver)
 		sys.path.append('/usr/lib64/python%s/site-packages' % pyver)
 		sys.path.append('/usr/lib/python%s/lib-dynload' % pyver)
@@ -534,9 +536,9 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 					rpm[1:].encode('utf-8'))
 
 				try:
-					for r in group.mandatory_packages.keys() + \
-							group.optional_packages.keys() + \
-							group.default_packages.keys():
+					for r in list(group.mandatory_packages) + \
+							list(group.optional_packages) + \
+							list(group.default_packages):
 						if r not in selected:
 							selected.append(r)
 				except:
@@ -555,8 +557,8 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 		while not done:
 			done = 1
 			results = a.findDeps(pkgs)
-			for pkg in results.keys():
-				for req in results[pkg].keys():
+			for pkg in list(results):
+				for req in list(results[pkg]):
 					reqlist = results[pkg][req]
 					for r in reqlist:
 						if r.name not in selected:
@@ -582,7 +584,7 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 	def makeBootable(self, name):
 		import rocks.roll
 
-		print 'Configuring Roll to be bootable ...', name
+		print('Configuring Roll to be bootable ...', name)
 		os.environ['RPMHOME'] = os.getcwd()
 		dist = rocks.roll.Distribution(self.getArch(), 
 			'rocks-dist-bootable')
@@ -635,12 +637,12 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 		# rolls cds.  Don't worry about what the file types are right
 		# now, we can figure that out later.
 			
-		list = []
+		list_allrpmfiles = []
 		if self.config.hasRPMS():
-			list.extend(self.getRPMS('RPMS'))
+			list_allrpmfiles.extend(self.getRPMS('RPMS'))
 		if self.config.hasSRPMS():
-			list.extend(self.getRPMS('SRPMS'))
-		for rpm in list:
+			list_allrpmfiles.extend(self.getRPMS('SRPMS'))
+		for rpm in list_allrpmfiles:
 			self.signRPM(rpm)
 
 		# Make a list of both required and optional packages.  The copy
@@ -652,22 +654,22 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 		required = []
 		if self.config.hasRolls():
 			(required, optional) = self.getExternalRPMS()
-			for file in list:
-				required.append(file)
-			print 'Required Packages', len(required)
-			print 'Optional Packages', len(optional)
-			for file in required: # make a copy of the list
-				list.append(file)
-			list.extend(optional)
+			for filenm in list_allrpmfiles:
+				required.append(filenm)
+			print('Required Packages', len(required))
+			print('Optional Packages', len(optional))
+			for filenm in required: # make a copy of the list
+				list_allrpmfiles.append(filenm)
+			list_allrpmfiles.extend(optional)
 
 
 		optional = 0
-		for (name, id, size, files) in self.spanDisks(list):
-			print 'Creating %s (%.2fMB)...' % (name, size),
+		for (name, id, size, files) in self.spanDisks(list_allrpmfiles):
+			print('Creating %s (%.2fMB)...' % (name, size), end=' ')
 			if optional:
-				print ' This disk is optional (extra rpms)'
+				print(' This disk is optional (extra rpms)')
 			else:
-				print 
+				print() 
 				
 			root = os.path.join(name,
 				self.config.getRollName(),
@@ -679,25 +681,25 @@ class RollBuilder_linux(Builder, rocks.dist.Arch):
 			
 			# Symlink in all the RPMS and SRPMS
 			
-			for file in files:
+			for filenm in files:
 				try:
 					#
 					# not RPM files will throw an exception
 					# in getPackageArch()
 					#
-					arch = file.getPackageArch()
+					arch = filenm.getPackageArch()
 				except:
 					continue
 
 				if arch == 'src':
-					file.symlink(os.path.join(root,
-						'SRPMS', file.getName()))
+					filenm.symlink(os.path.join(root,
+						'SRPMS', filenm.getName()))
 				else:
-					file.symlink(os.path.join(root,
+					filenm.symlink(os.path.join(root,
 						'RedHat', 'RPMS',
-						file.getName()))
-				if file in required:
-					del required[required.index(file)]
+						filenm.getName()))
+				if filenm in required:
+					del required[required.index(filenm)]
 					
 			if len(required) == 0:
 				optional = 1
@@ -739,11 +741,11 @@ class MetaRollBuilder(Builder):
 		self.version = version.strip()
 		Builder.__init__(self)
 		self.rolls = []
-		for file in files:
+		for filenm in files:
 			try:
-				self.rolls.append(rocks.file.RollFile(file))
+				self.rolls.append(rocks.file.RollFile(filenm))
 			except OSError:
-				print 'error - %s, no such roll' % file
+				print('error - %s, no such roll' % filenm)
 				sys.exit(-1)
 
 	def run(self):
@@ -757,7 +759,7 @@ class MetaRollBuilder(Builder):
 				arch.append(roll.getRollArch())
 
 		name.sort()
-		rollName = string.join(name, '+')
+		rollName = '+'.join(name)
 		if len(arch) == 1:
 			arch = arch[0]
 		else:
@@ -766,11 +768,11 @@ class MetaRollBuilder(Builder):
 
     		# Create the meta roll
 					
-		print 'Building %s ...' % name
+		print('Building %s ...' % name)
 		tmp = self.mktemp()
 		os.makedirs(tmp)
 		for roll in self.rolls:
-			print '\tcopying %s' % roll.getRollName()
+			print('\tcopying %s' % roll.getRollName())
 			self.copyRoll(roll, tmp)
 		isoname = '%s.disk1.iso' % (name)
 
@@ -803,12 +805,12 @@ class MetaRollBuilder(Builder):
 		
 		tree = rocks.file.Tree(tmp)
 		size = tree.getSize()
-		print 'Roll is %.1fMB' % size
+		print('Roll is %.1fMB' % size)
 
 		if isosize < size:
-			print 'WARNING: Roll %.1fMB is ' % (tree.getSize()) + \
+			print('WARNING: Roll %.1fMB is ' % (tree.getSize()) + \
 				'larger than computed max ' + \
-				'size %.1fMB' % (isosize)
+				'size %.1fMB' % (isosize))
 			
 		self.stampDisk(tmp, rollName, arch)
 		self.mkisofs(isoname, rollName, 'disk1', tmp)
@@ -834,10 +836,10 @@ class ReArchBuilder(Builder, rocks.dist.Arch):
 			self.getArch(),
 			roll.getRollDiskID())
 
-		print 'Re-Arching %s ...' % roll.getRollName()
+		print('Re-Arching %s ...' % roll.getRollName())
 		tmp = self.mktemp()
 		os.makedirs(tmp)
-		print '\tcopying %s' % roll.getRollName()
+		print('\tcopying %s' % roll.getRollName())
 		self.copyRoll(roll, tmp)
 		
 		# Fix the directory structure for the new Roll architecture
@@ -858,9 +860,9 @@ class ReArchBuilder(Builder, rocks.dist.Arch):
 		xml.setRollArch(self.getArch())
 		
 		os.unlink(xml.getFullName())
-		file = open(xml.getFullName(), 'w')
-		file.write(xml.getXML())
-		file.close()
+		filenm = open(xml.getFullName(), 'w')
+		filenm.write(xml.getXML())
+		filenm.close()
 		
 		self.config = rocks.file.RollInfoFile(xml.getFullName())
 		
@@ -938,10 +940,10 @@ class RollBuilder_sunos(Builder, rocks.dist.Arch):
 		#Builder.stampDisk(self, self.disc_dir, 
 		#	self.config.getRollName(), self.config.getRollArch())
 		
-		file = os.path.join(self.disc_dir,'.cdtoc')
-		if os.path.isfile(file):
-			os.unlink(file)
-		fout = open(file,'w')
+		filenm = os.path.join(self.disc_dir,'.cdtoc')
+		if os.path.isfile(filenm):
+			os.unlink(filenm)
+		fout = open(filenm,'w')
 		fout.write('PRODNAME=%s\n' % self.config.getRollName())
 		fout.write('PRODVERS=%s\n' % self.config.getRollVersion())
 		fout.write('PRODARCH=%s\n' % self.config.getRollArch())

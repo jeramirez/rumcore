@@ -1,9 +1,8 @@
-#!/opt/rocks/bin/python
+#!/usr/bin/env python
 #
 #
 
-from distutils.core import setup
-from setuptools import find_packages
+from setuptools import setup, find_packages
 import os
 
 version = os.environ.get('ROCKS_VERSION')
@@ -17,10 +16,13 @@ setup(
     description = 'Main Rocks python library',
     author = 'Phil Papadopoulos',
     author_email =  'philip.papadopoulos@gmail.com',
-    maintainer = 'Luca Clementi',
-    maintainer_email =  'luca.clementi@gmail.com',
+#    maintainer = 'Luca Clementi',
+#    maintainer_email =  'luca.clementi@gmail.com',
+    maintainer = 'J. Eduardo Ramirez',
+    maintainer_email =  'juaneduardo.ramirez@upr.edu',
     platforms = ['linux'],
-    url = 'https://rocksclusters.org',
+#    url = 'https://rocksclusters.org',
+    url = 'https://github.com/jeramirez/rumrocks',
     #long_description = long_description,
     #license = license,
     #main package, most of the code is inside here

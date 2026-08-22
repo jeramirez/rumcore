@@ -192,7 +192,7 @@ class Command(rocks.commands.dump.host.command):
 	def run(self, params, args):
 
 		for host in self.getHostnames(args):
-                        rows = self.db.execute("""select distinctrow
+			rows = self.db.execute("""select distinctrow
 				IF(net.subnet, sub.name, NULL),
 				net.device, net.mac, net.ip,
 				IF(net.subnet, sub.netmask, NULL),

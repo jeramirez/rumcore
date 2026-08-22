@@ -10,9 +10,7 @@ from sqlalchemy import *
 # Then edited manually a lot
 
 
-Base = sqlalchemy.ext.declarative.declarative_base()
-
-
+Base = sqlalchemy.orm.declarative_base()
  
 class RocksBase(object):
 	"""Additional base class of Rocks ORM hierarchy which includes some

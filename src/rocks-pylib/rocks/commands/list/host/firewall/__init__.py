@@ -140,7 +140,7 @@ class Command(rocks.commands.NetworkArgumentProcessor,
 			for rulename, catname, i, o, s, p, c, a, f, cmt in self.db.fetchall():
 				network = self.getNetworkName(i)
 				output_network = self.getNetworkName(o)
-			 	if f is not None: f = f[0:maxwidth]
+				if f is not None: f = f[0:maxwidth]
 				if cmt is not None: cmt = cmt[0:maxwidth]
 
 				self.addOutput('',(rulename, s, p, c, a, network,

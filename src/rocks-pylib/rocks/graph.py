@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 # 
 # @Copyright@
 # 
@@ -230,16 +230,17 @@ class Graph:
 		self.nodes      = {}
 
 	def getNodes(self):
-		list = []
-		for key,val in self.nodes.items():
-			list.append(val)
-		return list
+#		list_nodes = []
+#		for key,val in self.nodes.items():
+#			list_nodes.append(val)
+#		return list_nodes
+		return list(self.nodes.values())
 
 	def getEdges(self):
-		list = []
+		list_edges = []
 		for key,val in self.adjList.items():
-			list.extend(val)
-		return list
+			list_edges.extend(val)
+		return list_edges
 			
 
 	def reverse(self):
@@ -252,40 +253,40 @@ class Graph:
 				edge.reverse()
 				self.addEdge(edge)
 
-		
+
 	def addEdge(self, e):
-		if not self.nodes.has_key(e.getParent().name):
+		if e.getParent().name not in self.nodes:
 			self.nodes[e.getParent().name] = e.getParent()
-		if not self.nodes.has_key(e.getChild().name):
+		if e.getChild().name not in self.nodes:
 			self.nodes[e.getChild().name] = e.getChild()
 
-		if self.adjList.has_key(e.getParent()):
+		if e.getParent() in self.adjList:
 			self.adjList[e.getParent()].append(e)
 		else:
 			self.adjList[e.getParent()] = [ e ]
 
 	def hasNode(self, node):
-		if self.nodes.has_key(node):
+		if node in self.nodes:
 			return 1
 		return 0
 
-        def getNode(self, node):
+	def getNode(self, node):
 		if self.hasNode(node):
 			return self.nodes[node]
 		return None
 
 	def __getitem__(self, node):
-		if self.adjList.has_key(node):
+		if node in self.adjList:
 			return self.adjList[node]
 		else:
 			return []
 		
 	def __repr__(self):
-		list = []
+		list_repr = []
 		for key,val in self.adjList.items():
 			for e in val:
-				list.append(e.__repr__())
-		return string.join(list, '\n')
+				list_repr.append(e.__repr__())
+		return '\n'.join(list_repr)
 	
 
 class GraphIterator:

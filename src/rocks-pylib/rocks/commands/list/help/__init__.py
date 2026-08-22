@@ -171,7 +171,7 @@ class Command(rocks.commands.list.command):
 			filepath = os.path.join(rocks.commands.__path__[0],
 				subdir)
 			modpath  = 'rocks.commands.%s' % \
-				string.join(subdir.split(os.sep), '.')
+				'.'.join(subdir.split(os.sep))
 		else:
 			filepath = rocks.commands.__path__[0]
 			modpath  = 'rocks.commands'
@@ -180,7 +180,7 @@ class Command(rocks.commands.list.command):
 		dirs = tree.getDirs()
 		dirs.sort()
 
-		if os.environ.has_key('COLUMNS'):
+		if 'COLUMNS' in os.environ:
 			cols = os.environ['COLUMNS']
 			
 		for dir in dirs:
@@ -188,7 +188,7 @@ class Command(rocks.commands.list.command):
 				continue
 				
 			module = '%s.%s' % \
-				(modpath, string.join(dir.split(os.sep),'.'))
+				(modpath, '.'.join(dir.split(os.sep)))
 			__import__(module)
 			module = eval(module)
 			
@@ -203,11 +203,11 @@ class Command(rocks.commands.list.command):
 			# Format the brief usage to fit within the
 			# width of the user's window (default to 80 cols)
 			
-			cmd = string.join(dir.split(os.sep),' ')
+			cmd = ' '.join(dir.split(os.sep))
 			l   = len(cmd) + 1
 			s   = ''
 			for arg in o.usage().split():
-				if l + len(arg) < cols or cols == 0:
+				if l + len(arg) < int(cols) or cols == 0:
 					s += '%s ' % arg
 					l += len(arg) + 1 # space
 				else:

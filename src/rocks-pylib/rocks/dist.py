@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 # 
 # @Copyright@
 # 
@@ -470,9 +470,9 @@ class DistError(Exception):
 	pass
 	
 class DistRPMList(DistError):
-	def __init__(self, list):
-		Exception.__init__(self, list)
-		self.list = list
+	def __init__(self, listdist):
+		Exception.__init__(self, listdist)
+		self.list = listdist
 
 	
 # All the 'get()' functions return None on failure.
@@ -587,42 +587,42 @@ class Base(Arch):
 		return None
 
 	def getTreeNames(self):
-		return self.trees.keys()
+		return list(self.trees.keys())
 
 	def getTree(self, name):
-		if name in self.trees.keys():
+		if name in list(self.trees.keys()):
 			return self.trees[name]
 		else:
 			return None
 
-	def setFiles(self, name, path, list):
-		self.trees[name].setFiles(path, list)
+	def setFiles(self, name, path, listfiles):
+		self.trees[name].setFiles(path, listfiles)
 
 	def getFiles(self, name, path):
 		try:
 			value = self.trees[name]
 		except KeyError:
 			return []
-		list = [] 
-		if type(value) == types.ListType:
+		listfiles = []
+		if type(value) == type([]):
 			for tree in value:
-				list.extend(tree.getFiles(path))
-			return list
+				listfiles.extend(tree.getFiles(path))
+			return listfiles
 		else:
 			return value.getFiles(path)
 
-	def setBaseFiles(self, list):
-		self.setFiles('release', os.path.join('RedHat', 'base'), list)
+	def setBaseFiles(self, listfiles):
+		self.setFiles('release', os.path.join('RedHat', 'base'), listfiles)
 
-	def setRPMS(self, list):
-		self.setFiles('release', os.path.join('RedHat', 'RPMS'), list)
+	def setRPMS(self, listrpms):
+		self.setFiles('release', os.path.join('RedHat', 'RPMS'), listrpms)
         
-	def setSRPMS(self, list):
-		self.setFiles('release', 'SRPMS', list)
+	def setSRPMS(self, listrpms):
+		self.setFiles('release', 'SRPMS', listrpms)
 
-	def getPackage(self, name, list):
+	def getPackage(self, name, listpkg):
 		matches = []
-		for file in list:
+		for file in listpkg:
 			if file.getBaseName() == name:
 				matches.append(file)
 		
@@ -649,18 +649,18 @@ class Base(Arch):
 		return self.getTree('release')
 
 	def dumpDirNames(self):
-		for key in self.trees.keys():
+		for key in list(self.trees.keys()):
 			value = self.trees[key]
-			if type(value) == types.ListType:
+			if type(value) == type([]):
 				for e in value:
 					e.dumpDirNames()
 			else:
 				value.dumpDirNames()
         
 	def dump(self):
-		for key in self.trees.keys():
+		for key in list(self.trees.keys()):
 			value = self.trees[key]
-			if type(value) == types.ListType:
+			if type(value) == type([]):
 				for e in value:
 					e.dump()
 			else:
@@ -815,7 +815,7 @@ class Distribution(Base):
 		if self.local:
 			for cpu in self.cpus:
 				l.append(os.path.join(self.local, 'RPMS', cpu))
-		if os.environ.has_key('RPMHOME'):
+		if 'RPMHOME' in os.environ:
 			for cpu in self.cpus:
 				l.append(os.path.join(os.environ['RPMHOME'],
 						      'RPMS', cpu))
@@ -825,7 +825,7 @@ class Distribution(Base):
 		l = []
 		if self.local:
 			l.append(os.path.join(self.local, 'SRPMS'))
-		if os.environ.has_key('RPMHOME'):
+		if 'RPMHOME' in os.environ:
 			l.append(os.path.join(os.environ['RPMHOME'], 'SRPMS'))
 		return l
 

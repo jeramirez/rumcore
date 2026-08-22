@@ -185,12 +185,19 @@ class Command(rocks.commands.create.command):
 				for line in f.readlines():
 					file.write(line)
 			except:
-				print "Error: Could not open/read %s" % append_version_mk
+				print("Error: Could not open/read %s" % append_version_mk)
 		else:
 			files=[]
 			for root,subdir,fs in os.walk(dir):
+				#fix prefix change in case is different from original dir
+				rootdir, rootfile=os.path.split(root)
+				prefixedroot=rootdir.replace(os.path.split(dir)[0],prefix) + '/' + rootfile
 				for ff in fs:
-					files.append(os.path.join(root,ff))
+					files.append(os.path.join(prefixedroot,ff))
+				#include soft link dirs
+				for fdir in subdir:
+					if os.path.islink(os.path.join(root, fdir)):
+						files.append(os.path.join(prefixedroot, fdir))
 			if len(files) > 0:
 				file.write('RPM.FILES=%s\n' % "\\n".join(files))
 			else:

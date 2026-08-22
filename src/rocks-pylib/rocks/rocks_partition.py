@@ -1,4 +1,4 @@
-#!/opt/rocks/bin/python
+#!/usr/bin/python
 #!/usr/bin/env python
 
 import syslog
@@ -14,8 +14,8 @@ import rocks
 try:
 	import blivet
 except ImportError:
-	sys.path.append('/usr/lib/python2.7/site-packages')
-	sys.path.append('/usr/lib64/python2.7/site-packages')
+	sys.path.append('/usr/lib/python3.9/site-packages')
+	sys.path.append('/usr/lib64/python3.9/site-packages')
 	import blivet
 import time
 
@@ -34,20 +34,19 @@ class RocksPartition(object):
 
 	def getDisks(self):
 		""" names of the disks in the system - filter out ramdisks """
-		return map(lambda x: x.name,  \
-			filter(lambda x: x.name.find('ram') < 0, self.disks))
+		return [x.name for x in [x for x in self.disks if x.name.find('ram') < 0]]
 
 	def getRaids(self):
 		""" names of the md arrays in  the system """
-		return map(lambda x: os.path.basename(os.readlink("/dev/md/%s" %x.name)), self.raids)
+		return [os.path.basename(os.readlink("/dev/md/%s" %x.name)) for x in self.raids]
 
 	def getLVMs(self):
 		""" names of the lvm logical devices in  the system """
-		return map(lambda x: x.name, self.lvms)
+		return [x.name for x in self.lvms]
 
 	def gptDrive(self, devname):
 		""" return True if disk is formatted as gpt """
-		drive = filter(lambda x: x.name is devname, self.disks)	
+		drive = [x for x in self.disks if x.name is devname]	
 		if len(drive) == 0:
 			return False
 		# Weird, in the field. Some disk objects from Blivet
@@ -62,47 +61,47 @@ class RocksPartition(object):
 	def getDevice(self, str):
 		device = ''
 
-		a = string.split(str, '/dev/')
+		a = str.split('/dev/')
 		if len(a) > 1:
 			device = a[1]
 
-		return string.strip(device)
+		return device.strip()
 
 
 	def getSectorStart(self, str):
 		sectorstart = ''
 
-		a = string.split(str, '=')
-		if len(a) > 1 and string.strip(a[0]) == 'start':
+		a = str.split('=')
+		if len(a) > 1 and a[0].strip() == 'start':
 			sectorstart = a[1]
 		else:
 			sectorstart = a[0]
 
-		return string.strip(sectorstart)
+		return sectorstart.strip()
 
 
 	def getPartitionSize(self, str):
 		partitionsize = ''
 
-		a = string.split(str, '=')
-		if len(a) > 1 and string.strip(a[0]) == 'size':
+		a = str.split('=')
+		if len(a) > 1 and a[0].strip() == 'size':
 			partitionsize = a[1]
 		else:
 			partitionsize = a[0]
 
-		return string.strip(partitionsize)
+		return partitionsize.strip()
 
 
 	def getPartId(self, str):
 		partid = ''
 
-		a = string.split(str, '=')
-		if len(a) > 1 and string.strip(a[0]) == 'Id':
+		a = str.split('=')
+		if len(a) > 1 and a[0].strip() == 'Id':
 			partid = a[1]
 		else:
 			partid = a[0]
 		
-		return string.strip(partid)
+		return partid.strip()
 
 
 	def getFsType(self, mntpoint):
@@ -110,7 +109,7 @@ class RocksPartition(object):
 
 
 	def getBootFlags(self, str):
-		return string.strip(str)
+		return str.strip()
 		
 
 	def getMountPoint(self, devicename):
@@ -136,7 +135,7 @@ class RocksPartition(object):
 				(self.e2label, devicename)
 			label = os.popen(cmd).readlines()
 
-			label = string.join(label)
+			label = ''.join(label)
 			id = 'LABEL=%s' % (label[:-1])
 
 			mntpoint = self.findMntInFstab(id)
@@ -161,7 +160,7 @@ class RocksPartition(object):
 
 	def findMntInFstab(self, identifier):
 		for line in self.saved_fstab:
-			l = string.split(line)
+			l = line.split()
 			if len(l) > 0:
 				if l[0] == identifier:
 					return l[1]
@@ -171,7 +170,7 @@ class RocksPartition(object):
 
 	def findFsTypeInFstab(self, mntpoint):
 		for line in self.saved_fstab:
-			l = string.split(line)
+			l = line.split()
 			if len(l) > 2:
 				if l[1] == mntpoint:
 					return l[2]
@@ -187,7 +186,7 @@ class RocksPartition(object):
 		isDisk = 0
 		
 		for line in info:
-			l = string.split(line[:-1])
+			l = line[:-1].split()
 
 			if len(l) > 2 and re.match('[0-9]+', l[0]):
 				if devname[0:2] == 'md':
@@ -283,19 +282,19 @@ class RocksPartition(object):
 
 
 	def parsePartInfo(self, info):
-		n = string.split(info, ',')
+		n = info.split(',')
 
 		if len(n) != 8:
 			return ('', '', '', '', '', '', '', '')
 
-		device = string.strip(n[0])
-		sectorstart = string.strip(n[1])
-		partitionsize = string.strip(n[2])
-		partid = string.strip(n[3])
-		fstype = string.strip(n[4])
-		bootflags = string.strip(n[5])
-		partflags = string.strip(n[6])
-		mntpoint = string.strip(n[7])
+		device = n[0].strip()
+		sectorstart = n[1].strip()
+		partitionsize = n[2].strip()
+		partid = n[3].strip()
+		fstype = n[4].strip()
+		bootflags = n[5].strip()
+		partflags = n[6].strip()
+		mntpoint = n[7].strip()
 
 		return (device, sectorstart, partitionsize, partid, 
 			fstype, bootflags, partflags, mntpoint)
@@ -412,7 +411,7 @@ class RocksPartition(object):
 						break
 
 				if key != '':
-					if not nodedisks.has_key(key):
+					if key not in nodedisks:
 						nodedisks[key] = [n]
 					else:
 						nodedisks[key].append(n)
@@ -430,7 +429,7 @@ class RocksPartition(object):
 			return [ (disk, 'dummy') ]
 
 		for part in self.getDiskInfo(disk):
-			l = string.split(part)
+			l = part.split()
 
 			#
 			# skip the 'parted' header
@@ -499,7 +498,7 @@ class RocksPartition(object):
 		if mountpoint == 'root':
 			size = 16384
 		elif mountpoint == 'var':
-			size = 8192 
+			size = 8192
 		elif mountpoint == 'swap':
 			size = 1024
 		elif mountpoint == 'efi':
@@ -710,9 +709,9 @@ class RocksPartition(object):
 				args += [ "--onpart", nodedevice ]
 
 			if israid:
-				parts.append('raid %s' % (string.join(args)))
+				parts.append('raid %s' % (''.join(args)))
 			else:
-				parts.append('part %s' % (string.join(args)))
+				parts.append('part %s' % (''.join(args)))
 
 			self.mountpoints.append(nodemntpoint)
 

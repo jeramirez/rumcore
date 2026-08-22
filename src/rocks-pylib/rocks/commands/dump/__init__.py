@@ -155,6 +155,7 @@
 
 import string
 import rocks.commands
+import sys
 
 class command(rocks.commands.Command):
 	MustBeRoot = 0
@@ -167,6 +168,7 @@ class command(rocks.commands.Command):
 		
 	def quote(self, string):
 		s = ''
+		tag=False
 
 		if string != None:
 			for c in string:
@@ -174,10 +176,13 @@ class command(rocks.commands.Command):
 					s += c
 				else:
 					s += '\\%s' % c
+					tag=True
+		if tag:
+			s = '\'' + s + '\''
 		return s
 
 	def dump(self, line):
-		self.addText('/opt/rocks/bin/rocks %s\n' % line)
+		self.addText('%s %s\n' % (sys.argv[0],line))
 
 	
 class Command(command):

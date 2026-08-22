@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 #
 # @Copyright@
 # 
@@ -151,24 +151,24 @@ class DatabaseHelper(rocks.db.database.Database):
 		# provided
 
 
-		list = []
+		list_node = []
 		if not names:
 			
-			list = self.getSession().query(Node)
+			list_node = self.getSession().query(Node)
 			for i in preload:
-				list = list.options(sqlalchemy.orm.joinedload(i))
-			list = list.all()
+				list_node = list_node.options(sqlalchemy.orm.joinedload(i))
+			list_node = list_node.all()
 
 			# If we're looking for managed nodes only, filter out
 			# the unmanaged ones using host attributes
 			if managed_only:
 				managed_list = []
-				for hostname in list:
+				for hostname in list_node:
 					if self.getHostAttr(hostname,
 						'managed') == 'true':
 						managed_list.append(hostname)
 				return managed_list
-			return list
+			return list_node
 
 		
 		# we start with a false clause and then we add with OR all the other condition
@@ -248,8 +248,8 @@ class DatabaseHelper(rocks.db.database.Database):
 		:rtype: list
 		:return: a list of :class:`rocks.db.mappings.base.Appliance`
 		"""
-                clause = sqlalchemy.sql.expression.false()
-                query = self.getSession().query(Appliance)
+		clause = sqlalchemy.sql.expression.false()
+		query = self.getSession().query(Appliance)
 
 		if not args:
 			args = [ '%' ] # find all appliances
@@ -384,7 +384,7 @@ class DatabaseHelper(rocks.db.database.Database):
 			n = hostname.split('.')
 			if len(n) > 1:
 				name = n[0]
-				domain = string.join(n[1:], '.')
+				domain = '.'.join(n[1:])
 				cmd = 'select n.name from nodes n, '	+\
 					'networks nt, subnets s where '	+\
 					'nt.subnet=s.id and '		+\

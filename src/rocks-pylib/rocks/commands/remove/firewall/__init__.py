@@ -131,7 +131,7 @@ class Command(command):
 
 	def run(self, params, args):
 
-                (args, rulename) = self.fillPositionalArgs(('rulename',))
+		(args, rulename) = self.fillPositionalArgs(('rulename',))
 		if params.has_key('@ROCKSPARAM0'):
 			args.append(params['@ROCKSPARAM0'])
 

@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 #
 # $Id: installcgi.py,v 1.19 2012/11/27 00:48:40 phil Exp $
 # 
@@ -114,19 +114,22 @@ import string
 import shutil
 import rocks.file
 import rocks.util
+import sys
 
 class InstallCGI:
 
 	def __init__(self, rootdir=None):
+		#self.rockscmd = '/opt/rocks/bin/rocks'
+		self.rockscmd = sys.argv[0]
 		if rootdir == None:
-			cmd = '/opt/rocks/bin/rocks report distro'
+			cmd = self.rockscmd + ' report distro'
 			for line in os.popen(cmd).readlines():
 				distrodir = line[:-1]
 			self.rootdir = distrodir
 		else:
 			self.rootdir = rootdir
 
-		cmd = '/opt/rocks/bin/rocks report version'
+		cmd = self.rockscmd + ' report version'
 		for line in os.popen(cmd).readlines():
 			self.version = line[:-1]
 
@@ -177,7 +180,7 @@ class InstallCGI:
 		# set the language
 		#
 		cmdline = open('/proc/cmdline', 'r')
-		args = string.split(cmdline.readline())
+		args = cmdline.readline().split()
 		cmdline.close()
 
 		#
@@ -188,10 +191,10 @@ class InstallCGI:
 
 		for arg in args:
 			if arg.count('lang='):
-				a = string.split(arg, '=')
+				a = arg.split('=')
 				if len(a) > 1 and a[1] == 'ko':
 					lang = 'ko_KR'
-					langsupport = string.join([
+					langsupport = ''.join([
 						'ko_KR.UTF-8',
 						'ko_KR',
 						'ko',
@@ -234,7 +237,7 @@ class InstallCGI:
 		cmd = '%s -O - -nv %s 2> /dev/null' % (wget, url)
 
 		for line in os.popen(cmd).readlines():
-			a = string.split(line, '"')
+			a = line.split('"')
 
 			if a[0] == '<a href=':
 				#
@@ -291,7 +294,8 @@ class InstallCGI:
 		os.environ['PYTHONPATH'] = ''
 
 		cmd = 'HOME=%s ' % (self.rootdir)
-		cmd += '/opt/rocks/bin/rocks create distro '
+		cmd += '%s ' % (self.rockscmd)
+		cmd += 'create distro '
 		if len(rolls) > 0:
 			cmd += 'rolls="%s" ' % ' '.join(rolls)
 		cmd += 'root=%s ' % (self.rootdir)

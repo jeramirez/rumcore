@@ -152,12 +152,12 @@ class Command(rocks.commands.RollArgumentProcessor,
 		dirs = tree.getDirs()
 		dirs.sort()
 
-		dict = {}		
+		dict_roll = {}		
 		for dir in dirs:
 			if not dir:
 				continue
 			modpath = 'rocks.commands.%s' % \
-				string.join(dir.split(os.sep),'.')
+				'.'.join(dir.split(os.sep))
 			__import__(modpath)
 			module = eval(modpath)
 			try:
@@ -168,13 +168,13 @@ class Command(rocks.commands.RollArgumentProcessor,
 				o = getattr(module, 'RollName')
 			except AttributeError:
 				continue
-			if not dict.has_key(o):
-				dict[o] = []
-			dict[o].append(string.join(dir.split(os.sep), ' '))
+			if o not in dict_roll:
+				dict_roll[o] = []
+			dict_roll[o].append(' '.join(dir.split(os.sep)))
 
 		try:
 			rolls = self.getRollNames(args, params)
-		except rocks.util.CommandError, e:
+		except rocks.util.CommandError as e:
 			if len(args) != 1:
 				raise e
 			rolls = [(args[0], '')]
@@ -186,8 +186,8 @@ class Command(rocks.commands.RollArgumentProcessor,
 				continue
 			seenrolls.append(roll)
 		
-			if dict.has_key(roll):
-				for command in dict[roll]:
+			if roll in dict_roll:
+				for command in dict_roll[roll]:
 					self.addOutput(roll, command)
 			else:
 				if len(rolls) > 1:

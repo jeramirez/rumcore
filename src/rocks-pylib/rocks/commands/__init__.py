@@ -1,4 +1,4 @@
-#!/opt/rocks/bin/python
+#!/usr/bin/env python
 # 
 # @Copyright@
 # 
@@ -509,6 +509,7 @@ import types
 import sys
 import sqlalchemy.engine.result
 import traceback
+import builtins
 
 import rocks
 import rocks.graph
@@ -537,20 +538,20 @@ class OSArgumentProcessor:
 		return a list of all supported OS names.
 		"""
 
-		list = []
+		list_os = []
 		for arg in args:
 			s = arg.lower()
 			if s == 'linux':
-				list.append(s)
+				list_os.append(s)
 			elif s == 'sunos':
-				list.append(s)
+				list_os.append(s)
 			else:
 				self.abort('unknown os "%s"' % arg)
-		if not list:
-			list.append('linux')
-			list.append('sunos')
+		if not list_os:
+			list_os.append('linux')
+			list_os.append('sunos')
 
-		return list
+		return list_os
 	
 
 class MembershipArgumentProcessor:
@@ -564,7 +565,7 @@ class MembershipArgumentProcessor:
 		arg does not match anything in the database we Abort.  If the
 		ARGS list is empty return all membership names.
 		"""
-		list = []
+		list_membername = []
 		if not args:
 			args = [ '%' ] # find all memberships
 		for arg in args:
@@ -575,8 +576,8 @@ class MembershipArgumentProcessor:
 			if rows < 1:
 				self.abort('unknown membership "%s"' % arg)
 			for name, in self.db.fetchall():
-				list.append(name)
-		return list
+				list_membername.append(name)
+		return list_membername
 
 
 class DistributionArgumentProcessor:
@@ -590,7 +591,7 @@ class DistributionArgumentProcessor:
 		arg does not match anything in the database we Abort.  If the
 		ARGS list is empty return all distribution names.
 		"""	
-		list = []
+		list_distname = []
 		if not args:
 			args = [ '%' ] # find all distributions
 
@@ -608,9 +609,9 @@ class DistributionArgumentProcessor:
 					self.abort('unknown distribution "%s"' % arg)
 
 			for name, in self.db.fetchall():
-				list.append(name)
+				list_distname.append(name)
 
-		return list
+		return list_distname
 		
 
 class NetworkArgumentProcessor:
@@ -624,7 +625,7 @@ class NetworkArgumentProcessor:
 		arg does not match anything in the database we Abort.  If the
 		ARGS list is empty return all network names.
 		"""
-		list = []
+		list_netname = []
 		if not args:
 			args = [ '%' ] # find all networks
 		for arg in args:
@@ -635,8 +636,8 @@ class NetworkArgumentProcessor:
 			if rows < 1:
 				self.abort('unknown network "%s"' % arg)
 			for name, in self.db.fetchall():
-				list.append(name)
-		return list
+				list_netname.append(name)
+		return list_netname
 
 	def getNetworkName(self, netid):
 		"""Returns a network (subnet) name from the database that
@@ -669,12 +670,12 @@ class RollArgumentProcessor:
 		something.
 		"""
 
-		if params.has_key('version'):
+		if 'version' in params:
 			version = params['version']
 		else:
 			version = '%' # SQL wildcard
 	
-		list = []
+		list_rollname = []
 		if not args:
 			args = [ '%' ] # find all roll names
 		for arg in args:
@@ -686,9 +687,9 @@ class RollArgumentProcessor:
 			if rows < 1:
 				self.abort('unknown roll name "%s"' % arg)
 			for (name, ver) in self.db.fetchall():
-				list.append((name, ver))
+				list_rollname.append((name, ver))
 				
-		return list
+		return list_rollname
 		
 
 class HostArgumentProcessor:
@@ -719,23 +720,23 @@ class HostArgumentProcessor:
 		# list of hosts in the cluster if no list of names was
 		# provided
 		
-		list = []
+		list_hosts = []
 		if not names:
 			query = 'select name from nodes'
 
 			self.db.execute(query)
 			for host, in self.db.fetchall():
-				list.append(host)
+				list_hosts.append(host)
 			# If we're looking for managed nodes only, filter out
 			# the unmanaged ones using host attributes
 			if managed_only:
 				managed_list = []
-				for hostname in list:
+				for hostname in list_hosts:
 					if self.db.getHostAttr(hostname, 
 						'managed') == 'true':
 						managed_list.append(hostname)
 				return managed_list
-			return list
+			return list_hosts
 
 		# The names list was not empty so we now need to build
 		# a list of acceptable group names based on the rack numbers
@@ -775,25 +776,25 @@ class HostArgumentProcessor:
 		# We may want to add other expansion rules like the old 
 		# FDS style %d stuff here.
 		
-		dict = {}
+		dict_hosts = {}
 		for name in names:
 			if name.find('select') == 0:	# SQL select
 				self.db.execute(name)
 				for host, in self.db.fetchall():
-					dict[host] = 1
+					dict_hosts[host] = 1
 			elif name.find('%') >= 0:	# SQL % pattern
 				self.db.execute("""select name from nodes where
 					name like '%s'""" % name)
 				for h, in self.db.fetchall():
-					dict[h] = 1
-			elif groups.has_key(name):	# group name
+					dict_hosts[h] = 1
+			elif name in groups:	# group name
 				for host in groups[name]:
-					dict[host] = 1
+					dict_hosts[host] = 1
 			else:				# host name
-				dict[self.db.getHostname(name)] = 1
-		list = dict.keys()
-		list.sort()
-		return list
+				dict_hosts[self.db.getHostname(name)] = 1
+		list_h = builtins.list(dict_hosts)
+		list_h.sort()
+		return list_h
 
 
 class CategoryArgumentProcessor(HostArgumentProcessor):
@@ -845,9 +846,9 @@ class CategoryArgumentProcessor(HostArgumentProcessor):
 		#   
 		if category == 'host':
 			hostlist=index.split()
-			print "host list:" ,hostlist
+			print("host list:" ,hostlist)
 			for index in self.getHostnames(hostlist):
-				print "checking for host" ,index
+				print("checking for host" ,index)
 
 				rows = self.db.execute("""SELECT ID FROM vcatindex 
 				WHERE catindex='%s' and category='%s'""" % (index,category))
@@ -887,7 +888,7 @@ class DocStringHandler(handler.ContentHandler,
 	def getDocbookText(self):
 		s  = ''
 		s += '<section id="rocks-%s" xreflabel="%s">\n' % \
-			(string.join(self.name.split(' '), '-'), self.name)
+			('-'.join(self.name.split(' ')), self.name)
 		s += '<title>%s</title>\n' % self.name
 		s += '<cmdsynopsis>\n'
 		s += '\t<command>rocks %s</command>\n' % self.name
@@ -981,7 +982,7 @@ class DocStringHandler(handler.ContentHandler,
 				s += '\t<varlistentry>\n'
 				s += '\t<term>'
 				s += '<xref linkend="rocks-%s">' % \
-					string.join(related.split(' '), '-')
+					'-'.join(related.split(' '))
 				s += '</term>\n'
 				s += '\t<listitem>\n'
 				s += '\t<para>\n'
@@ -1144,7 +1145,7 @@ class DocStringHandler(handler.ContentHandler,
 		elif name in [ 'arg', 'param', 'example' ]:
 			self.section[name].append((self.key, self.text))
 		else:
-			if self.section.has_key(name):
+			if name in self.section:
 				self.section[name].append(self.text)
 		
 	def characters(self, s):
@@ -1387,7 +1388,7 @@ class Command:
 
 		self._args = None
 		self._params = None
-		if os.environ.has_key('ROCKSDEBUG'):
+		if 'ROCKSDEBUG' in os.environ:
 			self._debug = True
 		else:
 			self._debug = False
@@ -1433,7 +1434,7 @@ class Command:
 		#           hostlist,iface,mac=self.fillPositionalArgs( \
 	        #			('iface','mac'),params,args)
 	
-		if not type(names) in [ types.ListType, types.TupleType ]:
+		if type(names) not in ( type([]), type(()) ):
 			names = [ names ]
 			 
 		if not params:
@@ -1441,12 +1442,12 @@ class Command:
 		if not args:
 			args = self._args
 			
-		list = []
+		name_list = []
 		for name in names:
-			if params.has_key(name):
-				list.append(params[name])
+			if name in params:
+				name_list.append(params[name])
 			else:
-				list.append(None)
+				name_list.append(None)
 
 		# now walk backwards through the args and pull off
 		# positional arguments that have not already been set
@@ -1454,8 +1455,8 @@ class Command:
 
 		trimmedArgs = args
 		vars = []
-		list.reverse()
-		for e in list:
+		name_list.reverse()
+		for e in name_list:
 			if not e and len(trimmedArgs):
 				vars.append(trimmedArgs[-1])
 				trimmedArgs = trimmedArgs[:-1]
@@ -1497,7 +1498,7 @@ class Command:
 
 		# make sure names is a list or tuple
 		
-		if not type(names) in [ types.ListType, types.TupleType ]:
+		if type(names) not in ( type([]), type(()) ):
 			names = [ names ]
 
 		# for each element in the names list make sure it is also
@@ -1507,23 +1508,23 @@ class Command:
 		
 		pdlist = []
 		for e in names:
-			if type(e) in [ types.ListType, types.TupleType] \
+			if type(e) in ( type([]), type(())) \
 				and len(e) == 2:
-				tuple = ( e[0], e[1] )
+				parmtuple = ( e[0], e[1] )
 			else:
-				tuple = ( e[0], None )
-			pdlist.append(tuple)
+				parmtuple = ( e[0], None )
+			pdlist.append(parmtuple)
 				
 		if not params:
 			params = self._params
 
-		list = []
+		list_keys = []
 		for (key, default) in pdlist:
-			if params.has_key(key):
-				list.append(params[key])
+			if key in params:
+				list_keys.append(params[key])
 			else:
-				list.append(default)
-		return list
+				list_keys.append(default)
+		return list_keys
 
 
 	def command(self, command, args=[]):
@@ -1536,7 +1537,7 @@ class Command:
 
 		try:
 			o = getattr(mod, 'Command')(self.newdb)
-			name = string.join(string.split(command, '.'), ' ')
+			name = ' '.join(command.split('.'))
 		except AttributeError:
 			return ''
 
@@ -1549,7 +1550,7 @@ class Command:
 
 
 	def loadPlugins(self):
-		dict	= {}
+		dict_plugins	= {}
 		graph	= rocks.graph.Graph()
 		
 		dir = eval('%s.__path__[0]' % self.__module__)
@@ -1575,7 +1576,7 @@ class Command:
 				plugin = graph.getNode(o.provides())
 			else:
 				plugin = rocks.graph.Node(o.provides())
-			dict[plugin] = o
+			dict_plugins[plugin] = o
 
 			if graph.hasNode('TAIL'):
 				tail = graph.getNode('TAIL')
@@ -1597,18 +1598,18 @@ class Command:
 					head = rocks.graph.Node(req)
 				graph.addEdge(rocks.graph.Edge(head, plugin))
 			
-		list = []
+		list_nodes = []
 		for node in PluginOrderIterator(graph).run():
-			if dict.has_key(node):
-				list.append(dict[node])
-		return list
+			if node in dict_plugins:
+				list_nodes.append(dict_plugins[node])
+		return list_nodes
 
 		
 	def runPlugins(self, args='', plugins=None):
 		if not plugins:
 			plugins = self.loadPlugins()
 		for plugin in plugins:
-                        syslog.syslog(syslog.LOG_INFO, 'run %s' % plugin)
+			syslog.syslog(syslog.LOG_INFO, 'run %s' % plugin)
 			plugin.run(args)
 
 
@@ -1646,7 +1647,7 @@ class Command:
 
 	
 	def strWordWrap(self, line, indent=''):
-		if os.environ.has_key('COLUMNS'):
+		if 'COLUMNS' in os.environ:
 			cols = os.environ['COLUMNS']
 		else:
 			cols = 80
@@ -1683,18 +1684,18 @@ class Command:
 		"""Append a list to the output list buffer."""
 
 		# VALS can be a list, tuple, or primitive type.
-		list = [ '%s:' % owner ]
+		list_vals = [ '%s:' % owner ]
 
-		if isinstance(vals, types.ListType):
-			list.extend(vals)
-		elif isinstance(vals, types.TupleType) or \
-			isinstance(vals, sqlalchemy.engine.result.RowProxy):
+		if isinstance(vals, type([])):
+			list_vals.extend(vals)
+		elif isinstance(vals, type(())) or \
+			isinstance(vals, sqlalchemy.engine.Row):
 			for e in vals:
-				list.append(e)
+				list_vals.append(e)
 		else:
-			list.append(vals)
+			list_vals.append(vals)
 			
-		self.output.append(list)
+		self.output.append(list_vals)
 		
 		
 	def JSONOutput(self,header):
@@ -1715,10 +1716,10 @@ class Command:
 				ownerDict={}
 				ownerDict[ownerKey] = currentOwner
 				ownerDict[what]=[]
-			dict = {}
+			tmpdict = {}
 			for k,v in zip(header[1:],kk[1:]):
-				dict[k] = v
-			ownerDict[what].append(dict)
+				tmpdict[k] = v
+			ownerDict[what].append(tmpdict)
 
 		if currentOwner is not None:
 			jsonOutput.append(ownerDict)
@@ -1781,10 +1782,10 @@ class Command:
 		# so the above decision (startOfLine) can be made.
 		
 		if header and showHeader:
-			list = []
+			list_header = []
 			for field in header:
-				list.append(field.upper())
-			output = [ list ]
+				list_header.append(field.upper())
+			output = [ list_header ]
 			output.extend(self.output)
 		else:
 			output = self.output
@@ -1794,7 +1795,7 @@ class Command:
 			for i in range(0, len(line)):
 				if len(colwidth) <= i:
 					colwidth.append(0)
-				if type(line[i]) != types.StringType:
+				if type(line[i]) != bytes:
 					if line[i] == None:
 						itemlen = 0
 					else:
@@ -1807,7 +1808,7 @@ class Command:
 				
 		o = ''
 		for line in output:
-			list = []
+			list_str = []
 			for i in range(self.startOfLine, len(line)):
 				if line[i] == None:
 					s = ''
@@ -1821,19 +1822,19 @@ class Command:
 							padChar)
 				else:
 					o = s
-				list.append(o)
-			self.addText('%s%s' % (self.outputRow(list),linesep))
+				list_str.append(o)
+			self.addText('%s%s' % (self.outputRow(list_str),linesep))
 
 
-	def outputRow(self, list):
+	def outputRow(self, list_str):
 		if self.outputCols:
 			l = []
-			for i in range(0, len(list)):
+			for i in range(0, len(list_str)):
 				if self.outputCols[i + self.startOfLine]:
-					l.append(list[i])
-			return string.join(l, ' ')
+					l.append(list_str[i])
+			return ' '.join(l)
 		else:
-			return string.join(list, ' ')
+			return ' '.join(list_str)
 
 
 
@@ -1861,7 +1862,7 @@ class Command:
 		else:
 			users = []
 			
-		if flags.has_key('format'):
+		if 'format' in flags:
 			format = flags['format'].lower()
 		else:
 			format = 'plain'
@@ -1893,7 +1894,7 @@ class Command:
 
 		username = pwd.getpwuid(os.geteuid())[0]
 		if args:
-			command = '%s %s' % (name, string.join(args,' '))
+			command = '%s %s' % (name, ' '.join(args))
 		else:
 			command = name
 
@@ -1904,8 +1905,8 @@ class Command:
 		# with the exception of select statements (special case), and
 		# flags have one or more '='.
 		
-		dict = {} # flags
-		list = [] # arguments
+		dict_flg = {} # flags
+		list_arg = [] # arguments
 		
 		nparams = 0
 		flagpattern=re.compile("^[a-zA-z0-9\-_+]+=")
@@ -1913,31 +1914,31 @@ class Command:
 		for arg in args:
 			tokens = arg.split()
 			if tokens[0] == 'select':
-				list.append(arg)
+				list_arg.append(arg)
 			#there is an equal and 
 			#the left side of the equal does not contains spaces
 			elif flagpattern.match(arg):
 				(key, val) = arg.split('=', 1)
-				dict[key] = val
+				dict_flg[key] = val
 				if nparams == 0:
-					dict['@ROCKSPARAM0']=arg
+					dict_flg['@ROCKSPARAM0']=arg
 				nparams += 1
 			else:
-				list.append(arg)
+				list_arg.append(arg)
 
-		if  "json" in dict.keys():
-			if self.str2bool(dict['json']):
+		if  "json" in dict_flg:
+			if self.str2bool(dict_flg['json']):
 				self.json=True
 
-		if list and list[0] == 'help':
-			self.help(name, dict)
+		if list_arg and list_arg[0] == 'help':
+			self.help(name, dict_flg)
 		else:
 			if self.MustBeRoot and not \
 				(self.isRootUser() or self.isApacheUser()):
 				self.abort('command "%s" requires root' % name)
 			else:
-				self._args   = list
-				self._params = dict
+				self._args   = list_arg
+				self._params = dict_flg
 				try:
 					self.run(self._params, self._args)
 					if self.newdb is not None:
@@ -2009,12 +2010,12 @@ class PluginOrderIterator(rocks.graph.GraphIterator):
 
 	def run(self):
 		rocks.graph.GraphIterator.run(self)
-		list = []
+		list_node = []
 		self.nodes.sort()
 		for time, node in self.nodes:
-			list.append(node)
-		list.reverse()
-		return list
+			list_node.append(node)
+		list_node.reverse()
+		return list_node
 
 	def visitHandler(self, node, edge):
 		rocks.graph.GraphIterator.visitHandler(self, node, edge)

@@ -64,7 +64,7 @@ import rocks.commands.run
 from rocks.db.mappings.base import *
 import sqlalchemy
 import tempfile
-import IPy
+import ipaddress
 from socket import inet_ntoa
 from struct import pack
 
@@ -210,7 +210,7 @@ class Command(rocks.commands.run.command):
 		for roll in args:
 			rolls.append(roll)
 		xml = self.command('list.host.xml', [ hostname,
-			'roll=%s' % string.join(rolls, ',') ])
+			'roll=%s' % ','.join(rolls) ])
 
 
 		if self.os != 'linux':
@@ -223,7 +223,7 @@ class Command(rocks.commands.run.command):
 		script = []
 		script.append('#!/bin/sh\n')
 		script += gen.generate_config_script()
-		self.addText(string.join(script, ''))
+		self.addText(''.join(script))
 
 
 	def get_modified_attr(self, hostname, current_attrs):
@@ -260,10 +260,10 @@ def get_additional_attr(changed_attrs, current_attrs):
 	return_dict = {}
 
 	# for each changed attribute we call the fix functions
-	for name, value in changed_attrs.iteritems():
+	for name, value in changed_attrs.items():
 		for function in fix_functions:
 			new_values = function(name, value, current_attrs, changed_attrs)
-			for new_name, new_value in new_values.iteritems():
+			for new_name, new_value in new_values.items():
 				_check_new_value(return_dict, new_name, new_value)
 				if _check_new_value(changed_attrs, new_name, new_value):
 					return_dict[new_name] = new_values[new_name]
@@ -349,7 +349,7 @@ def _fix_networks(name, value, current_attrs, changed_attrs):
 			netmask = changed_attrs[kickstart_netmask]
 		else:
 			netmask = current_attrs[kickstart_netmask]
-		ip_temp =  IPy.IP(ip_addr + '/' + netmask, make_net=True)
+		ip_temp =  ipaddress.ip_network(ip_addr + '/' + netmask, strict=False)
 		ret_dict[kickstart_network] = str(ip_temp.net())
 		ret_dict[kickstart_broadcast] = str(ip_temp.broadcast())
 	return ret_dict

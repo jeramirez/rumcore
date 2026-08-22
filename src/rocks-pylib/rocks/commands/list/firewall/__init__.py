@@ -122,7 +122,7 @@ class Command(command):
 
 	def run(self, params, args):
 		self.beginOutput()
-		if params.has_key('@ROCKSPARAM0'):
+		if '@ROCKSPARAM0' in params:
 			if not params['@ROCKSPARAM0'].startswith('maxwidth'):
 				args.append(params['@ROCKSPARAM0'])
 		(maxwidth,) = self.fillParams([('maxwidth',24),])
@@ -139,8 +139,8 @@ class Command(command):
 			for cat, idx, rulename, i, o, s, p, c, a, f, cmt in self.db.fetchall():
 				network = self.getNetworkName(i)
 				output_network = self.getNetworkName(o)
-	
-			 	if f is not None: f = f[0:maxwidth]
+
+				if f is not None: f = f[0:maxwidth]
 				if cmt is not None: cmt = cmt[0:maxwidth]
 				self.addOutput('',(rulename, s, p, c, a, network,
 					output_network, f, cmt, '%s:%s' % (cat,idx)))

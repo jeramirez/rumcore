@@ -99,13 +99,13 @@ class Plugin(rocks.commands.Plugin):
 			self.owner.addText(line + '\n')
 		self.owner.addText(']]></attr>\n')
 
-                self.owner.addText('<appliance-attr><![CDATA[\n')
-                self.owner.addText(self.owner.command('list.appliance.attr',[]))
-                self.owner.addText(']]></appliance-attr>\n')
+		self.owner.addText('<appliance-attr><![CDATA[\n')
+		self.owner.addText(self.owner.command('list.appliance.attr',[]))
+		self.owner.addText(']]></appliance-attr>\n')
 
-                self.owner.addText('<os-attr><![CDATA[\n')
-                self.owner.addText(self.owner.command('list.os.attr',[]))
-                self.owner.addText(']]></os-attr>\n')
+		self.owner.addText('<os-attr><![CDATA[\n')
+		self.owner.addText(self.owner.command('list.os.attr',[]))
+		self.owner.addText(']]></os-attr>\n')
 
 
 		

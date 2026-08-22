@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 # 
 # @Copyright@
 # 
@@ -146,9 +146,7 @@ import sys
 import re
 import string
 import tempfile
-from xml.dom                 import ext
-from xml.dom.ext.reader.Sax2 import FromXmlStream
-from xml.sax._exceptions     import SAXParseException
+from lxml import etree
 import rocks.file
 import rocks.util
 import rocks.gen
@@ -192,8 +190,8 @@ class Distribution:
 		 
 	 
 	def generate(self, flags=""):
-		rocks.util.system('/opt/rocks/bin/rocks create distro ' + \
-			'dist=%s %s' % (self.name, flags))
+		rocks.util.system('%s create distro ' + \
+			'dist=%s %s' % (sys.argv[0], self.name, flags))
 		self.tree = rocks.file.Tree(os.path.join(os.getcwd(), 
 			self.getPath()))
 		self.createLocalYumConf()
@@ -225,7 +223,7 @@ class Distribution:
 			cmd += " --disablerepo=%s" % (','.join(ignoreRepos))
 		cmd += " %s" % options
 		cmd += " %s" % ' '.join(pkgList) 
-		print 'cmd', cmd
+		print('cmd', cmd)
 		return os.system(cmd)
 		
 		
@@ -235,15 +233,15 @@ class Distribution:
 #
 # used to parse rolls.xml file
 #
-class ScreenNodeFilter(rocks.gen.NodeFilter):
+class ScreenNodeFilter(rocks.gen.LxmlNodeFilter):
 	def acceptNode(self, node):
-		if node.nodeName in [ 
+		if node.tag in [ 
 			'rolls',
 			'roll',
 			]:
-			return self.FILTER_ACCEPT
+			return True
 		else:
-			return self.FILTER_SKIP
+			return False
 
 
 osGenerator = getattr(rocks.gen, 'Generator_%s' % os.uname()[0].lower())
@@ -255,51 +253,41 @@ class Generator(osGenerator):
 		self.os = os.uname()[0].lower()
 		return
 
+	def filtered_tree_walker(self, root_node, node_filter):
+		for element in root_node.iter():
+			if node_filter.acceptNode(element):
+				yield element
+
+	def nextNode(self,nodes):
+		try:
+			node = next(nodes)
+		except StopIteration:
+			node = None
+		return node
+
 	##
 	## Parsing Section
 	##
 	def parse(self, file):
-		doc  = FromXmlStream(file)
+		doc = etree.parse(file).getroot()
 
 		filter = ScreenNodeFilter({})
-		iter = doc.createTreeWalker(doc, filter.SHOW_ELEMENT,
-			filter, 0)
-		node = iter.nextNode()
+		iter = self.filtered_tree_walker(doc, filter)
+		node = self.nextNode(iter)
 
-		while node:
-			if node.nodeName == 'roll':
+		while node is not None:
+			if node.tag == 'roll':
 				self.handle_rollChild(node)
-			node = iter.nextNode()
+			node = self.nextNode(iter)
 
 			
 	# <roll>
 	def handle_rollChild(self, node):
-		attr = node.attributes
-		if attr.getNamedItem((None, 'name')):
-			name = attr.getNamedItem((None, 'name')).value
-		else:
-			name = ''
-
-		if attr.getNamedItem((None, 'version')):
-			version = attr.getNamedItem((None, 'version')).value
-		else:
-			version = ''
-
-		if attr.getNamedItem((None, 'arch')):
-			arch = attr.getNamedItem((None, 'arch')).value
-		else:
-			arch = ''
-
-		if attr.getNamedItem((None, 'url')):
-			url = attr.getNamedItem((None, 'url')).value
-		else:
-			url = ''
-
-		if attr.getNamedItem((None, 'diskid')):
-			diskid = attr.getNamedItem((None, 'diskid')).value
-		else:
-			diskid = ''
-
+		name    = node.get('name','')
+		version = node.get('version','')
+		arch    = node.get('arch','')
+		url     = node.get('url','')
+		diskid  = node.get('diskid','')
 		self.rolls.append((name, version, arch, url, diskid))
 
 		return

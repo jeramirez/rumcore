@@ -61,8 +61,8 @@ import os
 import rocks.commands
 import rocks.vm
 
-class command(rocks.commands.HostArgumentProcessor,
-	rocks.commands.set.host.command ):
+class command(rocks.commands.set.host.command,
+	rocks.commands.HostArgumentProcessor):
 
 	MustBeRoot = 0
 

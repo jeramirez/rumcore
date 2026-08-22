@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 # 
 # @Copyright@
 # 
@@ -272,15 +272,15 @@ def bool2str(b):
 	else:
 		return 'no'
 
-def list2str(list):
+def list2str(alist):
     s = ''
-    for e in list:
+    for e in alist:
         s = s + e
     return s
 
 
 def listcmp(l1, l2):
-    return map(lambda a,b: a==b, l1, l2)
+    return list(map(lambda a,b: a==b, l1, l2))
 
 def listdup(e, n):
     l = []
@@ -382,7 +382,7 @@ def startSpinner(cmd):
 
 	p = subprocess.Popen(cmd, shell=True, 
           	stdin=subprocess.PIPE, stdout=subprocess.PIPE, 
-		stderr=subprocess.PIPE, close_fds=True)
+		stderr=subprocess.PIPE, close_fds=True, text=True)
 	w, r ,e = (p.stdin, p.stdout, p.stderr)
 	currLength  = 0
 	prevLength  = 0
@@ -402,7 +402,7 @@ def startSpinner(cmd):
 			pad = pad + ' '
 		spin  = spinChars[spinIndex % len(spinChars)]
 		spinIndex = spinIndex + 1
-		print spin + data + pad + '\r',
+		print(spin + data + pad + '\r', end='')
 		prevLength = currLength
 		sys.stdout.flush()
 	r.close()
@@ -414,6 +414,6 @@ def startSpinner(cmd):
 	pad = ''
 	for i in range(0,78):
 		pad = pad + ' '
-	print '\r%s\r' % pad,
+	print('\r%s\r' % pad, end='')
 	
 

@@ -79,26 +79,26 @@ import re
 import os
 import shutil
 import string
-import UserDict
+from collections import UserDict
 from random import randrange
 import rocks
 import rocks.commands
 
-class Textsub(UserDict.UserDict):
+class Textsub(UserDict):
 	"""Substitutes variables in the text with their values
 	from the compiled dictionary"""
 
-	def __init__(self, dict=None):
+	def __init__(self, dicto=None):
 		self.re = None
 		self.regex = None
-		UserDict.UserDict.__init__(self, dict)
+		super().__init__(dicto)
 
 	def compile(self):
 		if len(self.data) > 0:
 			if self.re == None:
 				self.regex = re.compile("(%s)" % \
 					'|'.join(map(re.escape,
-						self.data.keys())))
+						list(self.data.keys()))))
 
 	def __call__(self, match):
 		return self.data[match.string[match.start():match.end()]]
@@ -183,7 +183,7 @@ class Command(rocks.commands.create.new.command):
 	def setDict(self):
 		"""Initialize dictionary. Key - a variable to
 		be substituted, value - the substitution value"""
-		dict = {"@template@" : self.name,
+		dicto = {"@template@" : self.name,
 			"@version@" : self.version,
 			"@color@" : self.color,
 			"template.xml" : "%s.xml" % self.name,
@@ -192,7 +192,7 @@ class Command(rocks.commands.create.new.command):
 				"roll-%s-usersguide.spec.in" % self.name,
 		}
 
-		self.dict = Textsub(dict)
+		self.dict = Textsub(dicto)
 		self.dict.compile()
 
 
@@ -201,7 +201,7 @@ class Command(rocks.commands.create.new.command):
 		name"""
 
 		str = "template"
-		i = string.find(name, str) 
+		i = name.find(str) 
 		if i == -1 :
 			return name
 
@@ -229,7 +229,7 @@ class Command(rocks.commands.create.new.command):
 			f.write (text)
 			f.close()
 		except IOError:
-			print "Error writing file %s" % name
+			print("Error writing file %s" % name)
 
 
 	def update(self, namein, nameout):
@@ -248,7 +248,7 @@ class Command(rocks.commands.create.new.command):
 		for file in fnames:
 			fullname = os.path.join(dirname, file)
 
-			if string.find(fullname, "images/") > 0 :
+			if fullname.find("images/") > 0 :
 				# don't change image files names
 				continue
 
@@ -259,7 +259,7 @@ class Command(rocks.commands.create.new.command):
 
 	def rmCVS(self, arg, dirname, fnames):
 		""" Remove CVS directories and their files"""
-		if string.find(dirname, "CVS") > -1:
+		if dirname.find("CVS") > -1:
 			for file in fnames:
 				os.remove(os.path.join(dirname, file))
 			os.rmdir(dirname)
@@ -270,13 +270,17 @@ class Command(rocks.commands.create.new.command):
 		if os.path.exists('./template'):
 			template_dir = './template'
 		else:
-			template_dir = \
+			try:
+				template_dir = rocks.RollTemplateDir
+			except AttributeError:
+				template_dir = \
 				'/opt/rocks/share/devel/src/roll/template'
 
 		shutil.copytree(template_dir, self.name)
 
-		os.path.walk(self.name, self.rmCVS, [] )
-		os.path.walk(self.name, self.rollName, [])
+		for root, dirs, files in os.walk(self.name):
+			self.rmCVS([], root, dirs + files)
+			self.rollName([], root, dirs + files)
 
 
 	def run(self, params, args):

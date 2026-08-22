@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 # 
 # @Copyright@
 # 
@@ -339,17 +339,17 @@ import xml.sax
 
 class File:
     
-	def __init__(self, file, timestamp=None, size=None):
+	def __init__(self, filenm, timestamp=None, size=None):
 		# Timestamp and size can be explicitly set for foreign files.
-		self.setFile(file, timestamp, size)
+		self.setFile(filenm, timestamp, size)
 		self.imortal = 0
 	
-	def __cmp__(self, file):
+	def __cmp__(self, filenm):
 
-		if self.getBaseName() != file.getBaseName() or \
-		 self.timestamp == file.timestamp:
+		if self.getBaseName() != filenm.getBaseName() or \
+		 self.timestamp == filenm.timestamp:
 			rc = 0
-		elif self.timestamp > file.timestamp:
+		elif self.timestamp > filenm.timestamp:
 			rc = 1
 		else:
 			rc = -1
@@ -358,7 +358,7 @@ class File:
 		# on the imortal flag.	If both files are divine, than don't
 		# change anything.
 	
-		if rc and self.imortal + file.imortal == 1:
+		if rc and self.imortal + filenm.imortal == 1:
 			if self.imortal:
 				rc = 1
 			else:
@@ -366,9 +366,21 @@ class File:
 		
 		return rc
 
-	def setFile(self, file, timestamp=None, size=None):
-		self.pathname	= os.path.dirname(file)
-		self.filename	= os.path.basename(file)
+	def __eq__(self, filenm):
+		return self.__cmp__(filenm) == 0
+
+	def __lt__(self, filenm):
+		return self.__cmp__(filenm) == -1
+
+	def __gt__(self, filenm):
+		return self.__cmp__(filenm) == 1
+
+	def __ge__(self, filenm):
+		return self.__eq__(filenm) or self.__gt__(filenm)
+
+	def setFile(self, filenm, timestamp=None, size=None):
+		self.pathname	= os.path.dirname(filenm)
+		self.filename	= os.path.basename(filenm)
 
 		# Get the timestamp of the file, or the derefereneced symbolic
 		# link.	 If the dereferenced link does not exist set the
@@ -377,14 +389,14 @@ class File:
 		if None not in (timestamp, size):
 			self.timestamp = timestamp
 			self.size = size
-		elif not os.path.islink(file):
-			self.timestamp = os.path.getmtime(file)
-			self.size	  = os.path.getsize(file)
+		elif not os.path.islink(filenm):
+			self.timestamp = os.path.getmtime(filenm)
+			self.size	  = os.path.getsize(filenm)
 		else:
-			orig = os.readlink(file)
+			orig = os.readlink(filenm)
 			if os.path.isfile(orig):
 				self.timestamp = os.path.getmtime(orig)
-				self.size		 = os.path.getsize(file)
+				self.size		 = os.path.getsize(filenm)
 			else:
 				self.timestamp = 0
 				self.size		 = 0
@@ -394,12 +406,12 @@ class File:
 		# If the file is a symbolic link to a file, follow the link
 		 # and copy the file.	 Links to directories are not exanded.
 
-		file = self.getFullName()
-		if os.path.islink(file):
-			orig = os.readlink(file)
+		filenm = self.getFullName()
+		if os.path.islink(filenm):
+			orig = os.readlink(filenm)
 			if os.path.isfile(orig):
-				os.unlink(file)
-				shutil.copy2(orig, file)
+				os.unlink(filenm)
+				shutil.copy2(orig, filenm)
 		
 				  # Fix the timestamp back to that of 
 				  # the original file. The above copy seems 
@@ -407,7 +419,7 @@ class File:
 				  # leave this in to make sure it always works.
 		
 				tm = os.path.getmtime(orig)
-				os.utime(file, (tm, tm))
+				os.utime(filenm, (tm, tm))
 		
 	def setImortal(self):
 		self.imortal = 1
@@ -446,14 +458,14 @@ class File:
 			os.chmod(self.getFullName(), mode)
 
 	def dump(self):
-		print '%s(%s)' % (self.filename, self.pathname)
+		print('%s(%s)' % (self.filename, self.pathname))
 
 
 
 class RPMBaseFile(File):
 
-	def __init__(self, file, timestamp=None, size=None, ext=1):
-		File.__init__(self, file, timestamp, size)
+	def __init__(self, filenm, timestamp=None, size=None, ext=1):
+		File.__init__(self, filenm, timestamp, size)
 		self.list	= []
 
 		# Remove ext count extensions, the default is 1, but for
@@ -461,19 +473,19 @@ class RPMBaseFile(File):
 		
 		s = self.filename	 # name-ver-rpmver.arch.rpm
 		for x in range(0, ext):
-			i = string.rfind(s, ".")
+			i = s.rfind(".")
 			s = self.filename[:i]
     
-		i = string.rfind(s, ".")
+		i = s.rfind(".")
 		self.list.append(s[i+1:])	# get architecture string
 		s = self.filename[:i]
 
-		i = string.rfind(s, "-")	# get RPM version string
+		i = s.rfind("-")	# get RPM version string
 		self.release = s[i+1:]
 		self.list.append(self.versionList(s[i+1:]))
 		s = self.filename[:i]
 
-		i = string.rfind(s, "-")	# get software version string
+		i = s.rfind("-")	# get software version string
 		self.version = s[i+1:]
 		self.list.append(self.versionList(s[i+1:]))
 
@@ -484,7 +496,7 @@ class RPMBaseFile(File):
 
 
 	def versionList(self, s):
-		list = []
+		list_ver = []
 		for e in re.split('\.+|_+', s):
 			num	= ''
 			alpha	= ''
@@ -498,19 +510,20 @@ class RPMBaseFile(File):
 				else:
 					alpha = alpha + c
 					if num:
-						l.append(string.atoi(num))
+						l.append(int(num))
 						num = ''
 			if alpha:
 				l.append(alpha)
 			if num:
-				l.append(string.atol(num))
-			list.append(l)
-		return list
+				l.append(int(num))
+			list_ver.append(l)
+		return list_ver
 
 	def getBaseName(self):
 		return self.list[0]
 
 	def getUniqueName(self):
+                # just name w/ arch string appended
 		return '%s-%s' % (self.list[0], self.list[3])
 
 	
@@ -518,29 +531,41 @@ class RPMBaseFile(File):
 
 class RPMFile(RPMBaseFile):
 
-	def __init__(self, file, timestamp=None, size=None):
-		RPMBaseFile.__init__(self, file, timestamp, size)
+	def __init__(self, filenm, timestamp=None, size=None):
+		RPMBaseFile.__init__(self, filenm, timestamp, size)
 	
-	def __cmp__(self, file):
-		if self.getPackageArch() != file.getPackageArch():
+	def __cmp__(self, filenm):
+		if self.getPackageArch() != filenm.getPackageArch():
 			rc = 0
 		else:
 			# For RPM Files, if the timestamps are within 2 minutes
 			# of each other check
 			# the Buildtime of the RPM
 
-		 	if abs(int(self.timestamp) - int(file.timestamp)) < 120 :
-				# print "CMP %s:%s" % (self.getFullName(), file.getFullName())
+			if abs(int(self.timestamp) - int(filenm.timestamp)) < 120 :
+				# print "CMP %s:%s" % (self.getFullName(), filenm.getFullName())
 				f1=os.popen("rpm -qp --qf '%%{BUILDTIME}' %s" % self.getFullName())
 				self.timestamp=float(f1.readline())
 				f1.close()
-				f2=os.popen("rpm -qp --qf '%%{BUILDTIME}' %s" % file.getFullName())
-				file.timestamp=float(f2.readline())
+				f2=os.popen("rpm -qp --qf '%%{BUILDTIME}' %s" % filenm.getFullName())
+				filenm.timestamp=float(f2.readline())
 				f2.close()
 
-			rc = File.__cmp__(self, file)
+			rc = File.__cmp__(self, filenm)
 
 		return rc
+
+	def __eq__(self, filenm):
+		return self.__cmp__(filenm) == 0
+
+	def __lt__(self, filenm):
+		return self.__cmp__(filenm) == -1
+
+	def __gt__(self, filenm):
+		return self.__cmp__(filenm) == 1
+
+	def __ge__(self, filenm):
+		return self.__eq__(filenm) or self.__gt__(filenm)
 
 	def getPackageName(self):
 		return self.getBaseName()
@@ -577,7 +602,7 @@ class RPMFile(RPMBaseFile):
 		cmd += '--badreloc --relocate /=%s %s' \
 			% (root, self.getFullName())
 
-		print 'cmd', cmd
+		print('cmd', cmd)
 		retval = os.system(cmd)
 		
 		# Crawl up from the end of the dbdir path and prune off
@@ -585,10 +610,10 @@ class RPMFile(RPMBaseFile):
 		while dbdir:
 			if not os.listdir(dbdir):
 				shutil.rmtree(dbdir)
-			list = string.split(dbdir, os.sep)
-			dbdir = string.join(list[:-1], os.sep)
+			list_ver = dbdir.split(os.sep)
+			dbdir = os.sep.join(list_ver[:-1])
 
-		print 'retval', retval
+		print('retval', retval)
 
 		return retval
 
@@ -598,16 +623,28 @@ class RPMFile(RPMBaseFile):
 
 class RollFile(RPMBaseFile):
 
-	def __init__(self, file, timestamp=None, size=None):
-		RPMBaseFile.__init__(self, file, timestamp, size, 2)
-		self.diskID = int(string.split(file, '.')[-2][4:])
+	def __init__(self, filenm, timestamp=None, size=None):
+		RPMBaseFile.__init__(self, filenm, timestamp, size, 2)
+		self.diskID = int(filenm.split('.')[-2][4:])
 	
-	def __cmp__(self, file):
-		if self.getRollArch() != file.getRollArch():
+	def __cmp__(self, filenm):
+		if self.getRollArch() != filenm.getRollArch():
 			rc = 0
 		else:
-			rc = File.__cmp__(self, file)
+			rc = File.__cmp__(self, filenm)
 		return rc
+
+	def __eq__(self, filenm):
+		return self.__cmp__(filenm) == 0
+
+	def __lt__(self, filenm):
+		return self.__cmp__(filenm) == -1
+
+	def __gt__(self, filenm):
+		return self.__cmp__(filenm) == 1
+
+	def __ge__(self, filenm):
+		return self.__eq__(filenm) or self.__gt__(filenm)
 
 
 	def getRollDiskID(self):
@@ -636,19 +673,19 @@ class RollInfoFile(File,
 	xml.sax.handler.ContentHandler, xml.sax.handler.DTDHandler,
 	xml.sax.handler.EntityResolver, xml.sax.handler.ErrorHandler):
 
-	def __init__(self, file):
-		File.__init__(self, file)
+	def __init__(self, filenm):
+		File.__init__(self, filenm)
 		
 		self.attrs = {}
 		parser = xml.sax.make_parser()
 		parser.setContentHandler(self)
-		fin = open(file, 'r')
+		fin = open(filenm, 'r')
 		parser.parse(fin)
 		fin.close()
 		
 	def startElement(self, name, attrs):
 		self.attrs[str(name)] = {}
-		for (attrName, attrVal) in attrs.items():
+		for (attrName, attrVal) in list(attrs.items()):
 			self.attrs[str(name)][str(attrName)] = str(attrVal)
 	
 	def getXML(self):
@@ -659,16 +696,16 @@ class RollInfoFile(File,
 		
 		xml.append('<roll name="%s" interface="%s">' %
 			(self.getRollName(), self.getRollInterface()))
-		for tag in self.attrs.keys():
+		for tag in list(self.attrs.keys()):
 			if tag == 'roll':
 				continue
 			attrs = ''
-			for key,val in self.attrs[tag].items():
+			for key,val in list(self.attrs[tag].items()):
 				attrs += ' %s="%s"' % (key, val)
 			xml.append('\t<%s%s/>' % (tag, attrs))
 		xml.append('</roll>')
 		
-		return string.join(xml, '\n')
+		return '\n'.join(xml)
 		
 	def getRollName(self):
 		return self.attrs['roll']['name']
@@ -736,21 +773,21 @@ class Tree:
 		return self.root
 
 	def getDirs(self):
-		return self.tree.keys()
+		return list(self.tree.keys())
 
 	def clear(self, path=''):
-		l1 = string.split(path, os.sep)
-		for key in self.tree.keys():
-			l2 = string.split(key, os.sep)
+		l1 = path.split(os.sep)
+		for key in list(self.tree.keys()):
+			l2 = key.split(os.sep)
 			if rocks.util.list_isprefix(l1, l2):
 				del self.tree[key]
 	
 	def getFiles(self, path=''):
 		try:
-		    list = self.tree[path]
+		    listfiles = self.tree[path]
 		except KeyError:
-		    list = []
-		return list
+		    listfiles = []
+		return listfiles
 
 	def setFiles(self, path, files):
 		self.tree[path] = files
@@ -783,14 +820,14 @@ class Tree:
 		self.tree[dir] = v
 
 	def dumpDirNames(self):
-		for key in self.tree.keys():
-		    print key
+		for key in list(self.tree.keys()):
+		    print(key)
 	    
 	def dump(self):
 		self.apply(self.__dumpIter__)
 
 	def apply(self, func, root=None):
-		for key in self.tree.keys():
+		for key in list(self.tree.keys()):
 			for e in self.tree[key]:
 				func(key, e, root)
 
@@ -798,14 +835,14 @@ class Tree:
 		'Return the size the if Tree in Mbytes'
 
 		len = 0
-		for key in self.tree.keys():
+		for key in list(self.tree.keys()):
 			for file in self.tree[key]:
 				len = len + file.getSize()
 		return float(len)
     
 
-	def __dumpIter__(self, path, file, root):
-		print path,
-		file.dump()
+	def __dumpIter__(self, path, filenm, root):
+		print(path, end=' ')
+		filenm.dump()
 	
 	

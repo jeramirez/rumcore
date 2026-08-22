@@ -152,15 +152,15 @@ class Command(rocks.commands.NetworkArgumentProcessor,
 	<related>set network netmask</related>
 	"""
                 
-        def run(self, flags, args):
-        	(args, mtu) = self.fillPositionalArgs(('mtu',))
+	def run(self, flags, args):
+		(args, mtu) = self.fillPositionalArgs(('mtu',))
         	
-        	if not len(args):
-        		self.abort('must supply network')
+		if not len(args):
+			self.abort('must supply network')
 		if not mtu:
 			self.abort('must supply mtu')
 			        	
-        	for network in self.getNetworkNames(args):
+		for network in self.getNetworkNames(args):
 			self.db.execute("""update subnets set mtu=%s where
 				subnets.name='%s'""" % (mtu, network))
 

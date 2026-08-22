@@ -84,8 +84,8 @@ class Plugin(rocks.commands.Plugin):
 		
 	def run(self, args):
 		self.owner.addText('<network>\n')
-                self.owner.addText(self.owner.command('list.network',[]))
-                self.owner.addText('</network>\n')
+		self.owner.addText(self.owner.command('list.network',[]))
+		self.owner.addText('</network>\n')
 
 
 		self.owner.addText('<host-interface>\n')

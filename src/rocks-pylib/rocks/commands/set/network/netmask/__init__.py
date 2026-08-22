@@ -155,15 +155,15 @@ class Command(rocks.commands.NetworkArgumentProcessor,
 	<related>set network subnet</related>
 	"""
 
-        def run(self, params, args):
-        	(args, netmask) = self.fillPositionalArgs(('netmask',))
+	def run(self, params, args):
+		(args, netmask) = self.fillPositionalArgs(('netmask',))
         	
-        	if not len(args):
-        		self.abort('must supply network')
+		if not len(args):
+			self.abort('must supply network')
 		if not netmask:
 			self.abort('must supply netmask')
 			        	
-        	for network in self.getNetworkNames(args):
+		for network in self.getNetworkNames(args):
 			self.db.execute("""update subnets set netmask='%s' where
 				subnets.name='%s'""" % (netmask, network))
 

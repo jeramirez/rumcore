@@ -117,11 +117,11 @@ class Command(command):
 		#
 		cmd = 'openssl genrsa '
 		if passphrase:
-			cmd += '-des3 '
-		cmd += '-out %s 1024' % key
+			cmd += '-aes256 '
+		cmd += '-out %s 2048' % key
 		status = os.system(cmd)
 		if status == 0:
-			os.chmod(key, 0400)
+			os.chmod(key, 0o400)
 
 			#
 			# output the public key

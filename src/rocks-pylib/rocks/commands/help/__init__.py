@@ -112,14 +112,14 @@ class Command(command):
 	def run(self, params, args):
 
 		help = self.command('list.help', [ 'cols=0' ])
-		sub  = string.join(args)
+		sub  = ''.join(args)
 
 		if not args:
 			self.addText(help)
 		else:
 			for line in help.split('\n'):
 				if line:
-					if string.find(line, sub) >= 0:
+					if sub in line:
 						self.addText('%s\n' % line)
 		
 

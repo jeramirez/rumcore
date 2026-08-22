@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 #
 # @Copyright@
 # 
@@ -124,7 +124,7 @@ class Database(object):
 
 		:rtype: string
 		:return: a string containing the password for the connection to the 
-			 DB. By defualt it is read from /root/.rocks.my.cnf for root
+			 DB. By default it is read from /root/.rocks.my.cnf for root
 			 and from /opt/rocks/mysql/my.cnf for apache
 		"""
 		if self._dbPasswd:
@@ -135,7 +135,10 @@ class Database(object):
 		if username == 'root':
 			filename = '/root/.rocks.my.cnf'
 		if username == 'apache':
-			filename = '/opt/rocks/mysql/my.cnf'
+			try:
+				filename = rocks.DatabaseMycnf
+			except AttributeError:
+				filename = '/opt/rocks/mysql/my.cnf'
 		try:
 			if filename is not None:
 				file = open(filename, 'r')
@@ -198,10 +201,13 @@ class Database(object):
 		data structure
 		"""
 
-		if os.environ.has_key('ROCKSDEBUG'):
+		if 'ROCKSDEBUG' in os.environ:
 			self.setVerbose(True)
 
-		mysql_socket = '/var/opt/rocks/mysql/mysql.sock'
+		try:
+			mysql_socket = rocks.DatabaseSocket
+		except AttributeError:
+			mysql_socket = '/var/opt/rocks/mysql/mysql.sock'
 
 		url = 'mysql+mysqldb://' + self.getDBUsername() + ':' + self.getDBPasswd() \
 			 + '@' + self.getDBHostname() + '/' + self.getDBName()
@@ -216,9 +222,9 @@ class Database(object):
 
 		if self.verbose:
 			# TODO move this to the logger
-			print "Database connection URL: ", url
+			print("Database connection URL: ", url)
 
-		self.engine = create_engine(url, pool_recycle=3600)
+		self.engine = create_engine(url, connect_args={"port": 40000 }, pool_recycle=3600)
 		# TODO: do not keep a connection active here it not needed
 		self.conn = self.engine.connect()
 
@@ -292,7 +298,7 @@ class Database(object):
 		"""
 		if self.conn:
 			if '%' in command:
-				command = string.replace(command, '%', '%%')
+				command = command.replace('%', '%%')
 			try:
 				self.results = self.conn.execute(command)
 			except sqlalchemy.exc.OperationalError as e:

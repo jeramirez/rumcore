@@ -1,4 +1,4 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 #
 # Code for handling the new conditional attributes for both the graph
 # edges and nodes.
@@ -94,10 +94,24 @@
 #
 
 import string
-import UserDict
+from collections import UserDict
 
 
-class _CondEnv(UserDict.UserDict):
+class Python2None:
+	"""Emulates Python 2's 'smaller than everything else' behavior.
+	to recover eval functionality as in python2.7"""
+	def __eq__(self, other): return other is None or isinstance(other, Python2None)
+	# The exact opposite of the equality check
+	def __ne__(self, other): return not self.__eq__(other)
+	def __lt__(self, other):
+		# None is smaller than everything except itself
+		if self.__eq__(other): return False
+		return True
+	def __gt__(self, other): return False
+	# Only True if compared against another None/Python2None
+	def __ge__(self, other): return self.__eq__(other)
+
+class _CondEnv(UserDict):
 	"""This is a special dictionary that rather than throwing
 	an exception when an item is not found it just returns None.  It is
 	used to create a special local() environment where all unresolved
@@ -106,9 +120,9 @@ class _CondEnv(UserDict.UserDict):
 	
 	def __getitem__(self, key):
 		try:
-			val = UserDict.UserDict.__getitem__(self, key)
+			val = UserDict.__getitem__(self, key)
 		except:
-			return None
+			return Python2None()
 
 		# Try to convert value to a boolean
 		
@@ -159,27 +173,27 @@ def CreateCondExpr(archs, oses, releases, cond):
 	exprs = []
     
 	if archs:
-		list = []		# OR of architectures
-		for arch in string.split(archs, ','):
-			list.append('arch=="%s"' % arch.strip())
-		exprs.append("( %s )" % string.join(list,' or '))
+		list_arch = []		# OR of architectures
+		for arch in archs.split(','):
+			list_arch.append('arch=="%s"' % arch.strip())
+		exprs.append("( %s )" % ' or '.join(list_arch))
 
 	if oses:
-		list = []		# OR of OSes
-		for os in string.split(oses, ','):
-			list.append('os=="%s"' % os.strip())
-		exprs.append("( %s )" % string.join(list,' or '))
+		list_os = []		# OR of OSes
+		for os in oses.split(','):
+			list_os.append('os=="%s"' % os.strip())
+		exprs.append("( %s )" % ' os '.join(list_os))
 
 	if releases:
-		list = []		# OR of releases
-		for release in string.split(releases, ','):
-			list.append('release=="%s"' % release.strip())
-		exprs.append("( %s )" % string.join(list,' or '))
+		list_rel = []		# OR of releases
+		for release in releases.split(','):
+			list_rel.append('release=="%s"' % release.strip())
+		exprs.append("( %s )" % ' or '.join(list_rel))
 
 	if cond:
 		exprs.append(cond)	# AND of the above and the generic cond
 
-	return string.join(exprs, ' and ')
+	return ' and '.join(exprs)
 
 
     
@@ -196,7 +210,7 @@ def EvalCondExpr(cond, attrs):
 		return True
 
 	env = _CondEnv()
-	for (k,v) in attrs.items():
+	for k, v in attrs.items():
 		env[k] = v
 		
 	return eval(cond, globals(), env)

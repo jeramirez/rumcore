@@ -1,4 +1,4 @@
-#!/opt/rocks/bin/python
+#!/usr/bin/env python
 #
 # @Copyright@
 # 

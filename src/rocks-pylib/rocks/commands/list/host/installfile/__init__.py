@@ -94,17 +94,16 @@ import rocks
 import string
 import rocks.gen
 import rocks.commands
-import xml.dom.ext
-import xml.dom.ext.reader.Sax2
+from lxml import etree
 
-class ProfileNodeFilter(rocks.gen.NodeFilter):
+class ProfileNodeFilter(rocks.gen.LxmlNodeFilter):
 	def acceptNode(self, node):
-		if node.nodeName == 'profile':
-			return self.FILTER_ACCEPT
-		if node.nodeName == 'section':
-			return self.FILTER_ACCEPT
+		if node.tag == 'profile':
+			return True
+		if node.tag == 'section':
+			return True
 
-		return self.FILTER_SKIP
+		return False
 
 
 class Command(rocks.commands.Command):
@@ -122,14 +121,22 @@ class Command(rocks.commands.Command):
 	</example>
 	"""
 
+	def filtered_tree_walker(self,root_node, node_filter):
+		for element in root_node.iter():
+			if node_filter.acceptNode(element):
+				yield element
+
+	def nextNode(self,nodes):
+		try:
+			node = next(nodes)
+		except StopIteration:
+			node = None
+		return node
+
+
 	def getChildText(self, node):
-		text = ''
-		for child in node.childNodes:
-			if child.nodeType == child.TEXT_NODE:
-				text += child.nodeValue
-			if child.nodeType == child.CDATA_SECTION_NODE:
-				text += child.nodeValue
-		return string.strip(text)
+		texts_in_node = node.xpath("text()")
+		return ''.join(texts_in_node).strip()
 
 
 	def run(self, params, args):
@@ -138,25 +145,25 @@ class Command(rocks.commands.Command):
 		if not section:
 			self.abort("must supply a section")
 
-		self.xml_doc = xml.dom.ext.reader.Sax2.FromXmlStream(sys.stdin)
-		self.xml_filter = ProfileNodeFilter({})
-		self.xml_tree = self.xml_doc.createTreeWalker(self.xml_doc,
-			self.xml_filter.SHOW_ELEMENT, self.xml_filter, 0)
+		self.xml_doc = etree.parse(sys.stdin)
+		root = self.xml_doc.getroot()
 
-		node = self.xml_tree.nextNode()
+		self.xml_filter = ProfileNodeFilter({})
+		# Create the generator loop (similar to original coding)
+		self.xml_tree = self.filtered_tree_walker(root, self.xml_filter)
+
+		node = self.nextNode(self.xml_tree)
 		done = 0
 		text = ''
-		while node and done == 0:
-			if node.nodeName == 'section':
-				attr = node.attributes
-				section_name = \
-					attr.getNamedItem((None, 'name')).value
+		while node is not None and done == 0:
+			if node.tag == 'section':
+				section_name = node.get('name')
 
 				if section_name == section:
 					text = self.getChildText(node)
 					done = 1
 
-			node = self.xml_tree.nextNode()
+			node = self.nextNode(self.xml_tree)
 
 		self.beginOutput()
 		self.addOutput(None, text)

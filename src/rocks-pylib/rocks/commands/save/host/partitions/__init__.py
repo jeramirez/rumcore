@@ -115,37 +115,36 @@ class Command(rocks.commands.save.host.command):
 		
 		#print devices
 		discoveredDisk = open('/tmp/discovered.disks', 'w')
-		discoveredDisk.write("disks: " + string.join(devices, ' ') + "\n")
-		discoveredDisk.write("raids: " + string.join(raids, ' ') + "\n")
+		discoveredDisk.write("disks: " + ' '.join(devices) + "\n")
+		discoveredDisk.write("raids: " + ' '.join(raids) + "\n")
 		discoveredDisk.close()
 	    
-	
 	def saveToDb(self, kickstarthost):
-	    # this is really hugly but record_partitions is looking for this file
-	    file = open("/tmp/db_partition_info.py", 'w')
-	    file.write("KickstartHost = '%s'" % kickstarthost)
-	    file.close()
-	    path = self.db.getHostAttr('localhost', 'Kickstart_DistroDir')
-	    if path == None:
-		path = '/export/rocks' 
-	    path=os.path.join(path,'install', 'rocks-dist')
-	    arch = os.listdir(path)[0]
-	    path = os.path.join(path, arch, 'build/include/installclass/')
-	    sys.path.append(path)
+		# this is really hugly but record_partitions is looking for this file
+		file = open("/tmp/db_partition_info.py", 'w')
+		file.write("KickstartHost = '%s'" % kickstarthost)
+		file.close()
+		path = self.db.getHostAttr('localhost', 'Kickstart_DistroDir')
+		if path == None:
+			path = '/export/rocks'
+		path=os.path.join(path,'install', 'rocks-dist')
+		arch = os.listdir(path)[0]
+		path = os.path.join(path, arch, 'build/include/installclass/')
+		sys.path.append(path)
 	    
 	    
-	    import record_partitions
-	    #print "partitions: ", record_partitions.nodepartinfo
+		import record_partitions
+		#print "partitions: ", record_partitions.nodepartinfo
 	    
-	    #p = rocks_partition.RocksPartition()
-	    #
-	    ##
-	    ## get the list of hard disks and software raid devices
-	    ##
-	    #disks = p.getDisks() + p.getRaids()
-	    #nodepartinfo = p.getNodePartInfo(disks)
+		#p = rocks_partition.RocksPartition()
+		#
+		##
+		## get the list of hard disks and software raid devices
+		##
+		#disks = p.getDisks() + p.getRaids()
+		#nodepartinfo = p.getNodePartInfo(disks)
 	    
-	    #print "node part info: ", nodepartinfo
+		#print "node part info: ", nodepartinfo
 	
 
 	def run(self, params, args):

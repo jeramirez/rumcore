@@ -110,7 +110,6 @@ import rocks.gen
 import rocks.file
 import rocks.commands
 import tempfile
-from xml.dom.ext.reader import Sax2
 
 rpm_force_template = """[ $? -ne 0 ] && \\
 echo "# YUM failed - trying with RPM" && \\
@@ -167,20 +166,19 @@ class Command(rocks.commands.run.command):
 		for roll in args:
 			rolls.append(roll)
 		xml = self.command('list.host.xml', [ host,
-			'roll=%s' % string.join(rolls, ',') ])
+			'roll=%s' % ','.join(rolls) ])
 
 
-		reader = Sax2.Reader()
 		gen = getattr(rocks.gen,'Generator_%s' % self.os)()
 		gen.setArch(self.arch)
 		gen.setOS(self.os)
 		gen.parse(xml)
 
 		distPath = os.path.join(self.command('report.distro')[:-1], 'rocks-dist')
-                tree = rocks.file.Tree(distPath)
+		tree = rocks.file.Tree(distPath)
 		rpm_list = {}
 		len_base_path = len('/export/rocks')
-                base_url = "http://" + self.db.getHostAttr('localhost', 'Kickstart_PublicHostname')
+		base_url = "http://" + self.db.getHostAttr('localhost', 'Kickstart_PublicHostname')
 		# Build a list of all the files in rocks-managed distribution
 		for file in tree.getFiles(os.path.join(self.arch, 'RedHat', 'RPMS')):
 			if isinstance(file, rocks.file.RPMFile):
@@ -206,8 +204,8 @@ class Command(rocks.commands.run.command):
 		script += gen.generate_config_script()
 		
 		if dryrun:
-			self.addText(string.join(script, ''))
+			self.addText(''.join(script))
 		else:
-			os.system(string.join(script, ''))
+			os.system(''.join(script))
 
 

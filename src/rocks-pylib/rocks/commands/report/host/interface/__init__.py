@@ -501,7 +501,7 @@ class Command(rocks.commands.HostArgumentProcessor,
 
 		self.plugins = self.loadPlugins()
 
-                for host in self.getHostnames(args):
+		for host in self.getHostnames(args):
 			osname = self.db.getHostAttr(host, 'os')               
 			f = getattr(self, 'run_%s' % (osname))
 			f(host)

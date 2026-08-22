@@ -136,7 +136,7 @@ class Command(rocks.commands.report.command):
 		graphnode = rocks.profile.Node("temppost")
 		handler=rocks.profile.Pass1NodeHandler(graphnode,"report-post",{},attrs, eval=1)
 		parser.setContentHandler(handler)
-		for line in xml:
+		for line in xml.splitlines(keepends=True):
 			parser.feed(line)
 		newxml = handler.getXML()
 		return newxml
@@ -147,6 +147,7 @@ class Command(rocks.commands.report.command):
 
 		file = open(filename, 'w')
 		file.write(xml)
+		file.flush()
 		file.close()
 
 		scrubbed = ''
@@ -215,7 +216,7 @@ class Command(rocks.commands.report.command):
 				self.attrs[key] = \
 					rocks.util.escapeAttr(self.attrs[key])
 
-			for (k, v) in self.attrs.items():
+			for (k, v) in list(self.attrs.items()):
 				xmlentities += '\t<!ENTITY %s "%s">\n' % (k, v)
 
 		xmlhdr =re.compile('<\?xml')
