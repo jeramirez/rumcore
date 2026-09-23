@@ -101,6 +101,10 @@ install:: addrollvariable build
 		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
 	@echo "RollTemplateDir = '/usr/share/rumrocks/devel/src/roll/template'" >> \
 		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
+	@echo "CmdRocksCi = '/usr/bin/ci'" >> \
+		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
+	@echo "CmdRocksCo = '/usr/bin/co'" >> \
+		$(ROOT)/$(PY.ROCKS)/rocks/__init__.py
 	$(INSTALL) -m0444 rocks-copyright.txt \
 		$(ROOT)/$(PY.ROCKS)/rocks/commands/list/license/license.txt
 	$(INSTALL) -m0755 bin/rocks \

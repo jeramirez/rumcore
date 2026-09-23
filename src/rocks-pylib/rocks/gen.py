@@ -660,6 +660,12 @@ class Generator:
 		self.attrs	= {}
 		self.arch	= None
 		self.rcsFiles	= {}
+		try:
+			self.rcs_ci	= rocks.CmdRocksCi
+			self.rcs_co	= rocks.CmdRocksCo
+		except AttributeError:
+			self.rcs_ci	= '/opt/rocks/bin/ci'
+			self.rcs_co	= '/opt/rocks/bin/co'
 
 	def setArch(self, arch):
 		self.arch = arch
@@ -708,9 +714,9 @@ class Generator:
 			l.append('\t\tmkdir -m 700 %s' % rcsdir)
 			l.append('\t\tchown 0:0 %s' % rcsdir)
 			l.append('\tfi;')
-			l.append('\techo "original" | /opt/rocks/bin/ci %s;' %
-			 	file)
-			l.append('\t/opt/rocks/bin/co -f -l %s;' % file)
+			l.append('\techo "original" | %s %s;' %
+			 	(self.rcs_ci,file))
+			l.append('\t%s -f -l %s;' % (self.rcs_co,file))
 			l.append('fi')
 
 		# If this is a subsequent file tag and the optional PERMS
@@ -749,8 +755,8 @@ class Generator:
 
 		l.append('')
 		l.append('if [ -f %s ]; then' % file)
-		l.append('\techo "rocks" | /opt/rocks/bin/ci %s;' % file)
-		l.append('\t/opt/rocks/bin/co -f -l %s;' % file)
+		l.append('\techo "rocks" | %s %s;' % (self.rcs_ci,file))
+		l.append('\t%s -f -l %s;' % (self.rcs_co,file))
 		l.append('fi')		
 
 		if owner:
