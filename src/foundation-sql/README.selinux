@@ -1,0 +1,14 @@
+******************** IMPORTANT ***********************
+To make this policy package active, execute:
+
+semodule -i mariadb_socket.pp
+
+Or if want to recompile first make changes to mariadb_socket.te and run:
+checkmodule -M -m -o mariadb_socket.mod mariadb_socket.te
+semodule_package -o mariadb_socket.pp -m mariadb_socket.mod
+
+# if datadir is nfs mounted
+sudo setsebool -P mysql_connect_any 1
+
+# to allow system daemons to communicate with, manage, or run as part of a High-Availability (HA) cluster infrastructure
+#sudo setsebool -P daemons_enable_cluster_mode 1

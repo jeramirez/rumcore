@@ -1,0 +1,47 @@
+%pre
+getent group rocksdb >/dev/null || groupadd -r rocksdb
+getent passwd rocksdb >/dev/null || useradd -r -g rocksdb -d /var/lib/rumrocks/mysql -s /sbin/nologin  -c "RUMRocks MySQL Server user" rocksdb
+
+%post 
+#%files
+#%attr(0755,rocksdb,rocksdb) %dir /var/lib/rumrocks/mysql
+mkdir -p /var/lib/rumrocks/mysql
+chown rocksdb:rocksdb /var/lib/rumrocks/mysql
+chmod 0755 /var/lib/rumrocks/mysql
+semanage fcontext -a -t mysqld_db_t "/var/lib/rumrocks/mysql(/.*)?"
+#restorecon -Rv /var/lib/rumrocks/mysql
+#%attr(0755,rocksdb,rocksdb) %dir /var/lib/rumrocks/foundation-sql
+mkdir -p /var/lib/rumrocks/foundation-sql
+chown rocksdb:rocksdb /var/lib/rumrocks/foundation-sql
+chmod 0755 /var/lib/rumrocks/foundation-sql
+semanage fcontext -a -t mysqld_var_run_t "/var/lib/rumrocks/foundation-sql/mysqld.sock"
+#%attr(0750,rocksdb,rocksdb) %dir /var/log/foundation-sql
+mkdir -p /var/log/foundation-sql
+chown rocksdb:rocksdb /var/log/foundation-sql
+chmod 0750 /var/log/foundation-sql
+semanage fcontext -a -t mysqld_log_t "/var/log/foundation-sql(/.*)?"
+#restorecon -Rv /var/log/foundation-sql
+#%attr(0750,rocksdb,rocksdb) %dir /run/foundation-sql
+mkdir -p /run/foundation-sql
+chown rocksdb:rocksdb /run/foundation-sql
+
+#port
+semanage port -a -t mysqld_port_t -p tcp 40000
+#my.cnf
+semanage fcontext -a -t mysqld_etc_t "/etc/rumrocks/mysql/my.cnf"
+
+semodule -P -i /etc/rumrocks/mysql/selinux/mariadb_socket.pp >/dev/null 2>&1 || :
+
+%systemd_post foundation-sql.service
+
+
+%postun
+semanage fcontext -d -t mysqld_db_t "/var/lib/rumrocks/mysql(/.*)?"
+semanage fcontext -d -t mysqld_var_run_t "/var/lib/rumrocks/foundation-sql/mysqld.sock"
+semanage fcontext -d -t mysqld_log_t "/var/log/foundation-sql(/.*)?"
+semanage port -d -t mysqld_port_t -p tcp 40000
+semanage fcontext -d -t mysqld_etc_t "/etc/rumrocks/mysql/my.cnf"
+
+semodule -r mariadb_socket 2>/dev/null || :
+
+%systemd_postun foundation-sql.service

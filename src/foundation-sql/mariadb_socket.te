@@ -1,0 +1,14 @@
+
+module mariadb_socket 1.0;
+
+require {
+	type var_t;
+	type mysqld_t;
+	type var_lib_t;
+	class dir write;
+	class sock_file { create unlink };
+}
+
+#============= mysqld_t ==============
+allow mysqld_t var_lib_t:sock_file { create unlink };
+allow mysqld_t var_t:dir write;
