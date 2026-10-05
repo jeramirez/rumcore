@@ -1,0 +1,21 @@
+[Unit]
+Description=Set the node up for scalable kickstart installations
+# this used to ensure the load on the frontend is capped when multiple
+# nodes are asking for their kickstart files (i.e., asking for kickstart.cgi)
+#Start very late (98)
+After=network.target
+
+[Service]
+Type=oneshot
+
+ExecStart=/bin/true
+ExecStartPost/bin/rm -f /var/tmp/kickstart.cgi.lck
+
+ExecStop=/bin/true
+ExecStopPost=/bin/rm -f /var/tmp/kickstart.cgi.lck
+
+RemainAfterExit=no
+
+[Install]
+#Equivalent to Runlevel 3 in init.d (multiuser level)
+WantedBy=multi-user.target
